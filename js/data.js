@@ -152,25 +152,50 @@
   ];
   D.TALENT_COST = (rank) => ({ gold: Math.round(80 * Math.pow(2.1, rank)), lvl: rank * 2 });
 
+  // ---------- Difficulté ("très dur") ----------
+  D.DIFF = {
+    monHp: 1.5, monDmg: 1.55,      // multiplicateurs des monstres normaux
+    eliteHp: 4, eliteDmg: 1.5,     // multiplicateurs des élites
+    windup: 0.88,                  // les monstres préparent leurs coups plus vite
+    aggro: 340, alert: 300,        // distance de repérage / d'appel à l'aide
+    enrage: 150,                   // secondes avant la rage des boss
+    extra: 1,                      // monstres en plus par groupe de 2 ou plus
+  };
+  D.POTION_HEAL = 0.3;
+  D.POTION_CD = 15;
+
+  // Pouvoirs des élites (1 au donjon 1-2, 2 à partir du donjon 3)
+  D.AFFIXES = {
+    rapide: { name: 'Rapide', speed: 1.35, windup: 0.85 },
+    enrage: { name: 'Enragé', dmg: 1.3 },
+    blinde: { name: 'Blindé', hp: 1.5 },
+    vampire: { name: 'Vampirique', vamp: 0.4 },
+    explosif: { name: 'Explosif', explode: true },
+    glacial: { name: 'Glacial', chill: 0.4 },
+  };
+
   // ---------- Monstres ----------
-  // atks : attaques (swing = mêlée en cône, shoot = projectile, circle = zone au sol à retardement,
-  // nova = zone autour de soi, charge = ruée en ligne, summon = invocation, ring = projectiles en cercle, line = ligne au sol)
+  // atks : swing = mêlée en cône, shoot = projectile, circle = zone au sol à retardement, nova = zone autour de soi,
+  // charge = ruée en ligne, summon = invocation, ring = projectiles en cercle, line = ligne au sol,
+  // combo = enchaînement de coups, zone = sol maudit qui dure, dive = plongée puis surgissement, heal = soigne un allié,
+  // shieldAdds = bouclier tant que les gardes vivent, spiral = spirale de projectiles, explode = se fait exploser.
+  // Traits : keep (garde ses distances), guard (bloque de face), regen, split, erratic, blink, flying, glow.
   D.MONSTERS = {
     skeleton: { name: 'Squelette', hp: 55, dmg: 13, speed: 80, r: 13, xp: 10, gold: [1, 4], look: 'skeleton', col: '#e4dcc6',
       atks: [{ t: 'swing', range: 44, arc: 90, windup: 0.45, cd: 1.3 }] },
     skelArcher: { name: 'Squelette archer', hp: 40, dmg: 11, speed: 75, r: 12, xp: 12, gold: [2, 5], look: 'skelArcher', col: '#e4dcc6', keep: 230,
-      atks: [{ t: 'shoot', range: 380, windup: 0.55, cd: 1.9, speed: 320 }] },
-    ghoul: { name: 'Goule', hp: 45, dmg: 9, speed: 130, r: 12, xp: 10, gold: [1, 3], look: 'ghoul', col: '#8c9a7a',
+      atks: [{ t: 'shoot', range: 380, windup: 0.55, cd: 1.9, speed: 330 }] },
+    ghoul: { name: 'Goule', hp: 45, dmg: 9, speed: 135, r: 12, xp: 10, gold: [1, 3], look: 'ghoul', col: '#8c9a7a',
       atks: [{ t: 'swing', range: 38, arc: 80, windup: 0.3, cd: 0.85 }] },
     cultist: { name: 'Acolyte cendré', hp: 50, dmg: 20, speed: 70, r: 13, xp: 14, gold: [3, 7], look: 'cultist', col: '#5a4a5e', keep: 270,
-      atks: [{ t: 'circle', range: 420, radius: 58, delay: 1.1, windup: 0.3, cd: 3.2 }] },
-    wolf: { name: 'Loup de Bois-Pendu', hp: 55, dmg: 11, speed: 155, r: 13, xp: 12, gold: [1, 4], look: 'wolf', col: '#6e6458',
+      atks: [{ t: 'circle', range: 420, radius: 58, delay: 1.05, windup: 0.3, cd: 3.0 }] },
+    wolf: { name: 'Loup de Bois-Pendu', hp: 55, dmg: 11, speed: 158, r: 13, xp: 12, gold: [1, 4], look: 'wolf', col: '#6e6458',
       atks: [{ t: 'swing', range: 40, arc: 80, windup: 0.32, cd: 0.9 }, { t: 'charge', range: 230, min: 90, windup: 0.6, dist: 210, width: 30, cd: 5, dmgMul: 1.4 }] },
     spider: { name: 'Araignée tisseuse', hp: 45, dmg: 10, speed: 95, r: 12, xp: 12, gold: [2, 5], look: 'spider', col: '#3e3a2f', keep: 210,
-      atks: [{ t: 'shoot', range: 360, windup: 0.5, cd: 2.0, speed: 300, slow: 0.4, poison: 0.6, color: '#6b8f2a' }] },
+      atks: [{ t: 'shoot', range: 360, windup: 0.5, cd: 2.0, speed: 310, slow: 0.4, poison: 0.6, color: '#6b8f2a' }] },
     treant: { name: 'Sylvain corrompu', hp: 110, dmg: 22, speed: 55, r: 20, xp: 30, gold: [5, 12], look: 'treant', col: '#5d6b37',
       atks: [{ t: 'swing', range: 58, arc: 110, windup: 0.7, cd: 1.6 }, { t: 'nova', range: 120, radius: 130, windup: 1.1, cd: 6, dmgMul: 1.3 }] },
-    goblin: { name: 'Gobelin mineur', hp: 50, dmg: 11, speed: 140, r: 11, xp: 12, gold: [2, 6], look: 'goblin', col: '#6f8f3a',
+    goblin: { name: 'Gobelin mineur', hp: 50, dmg: 11, speed: 142, r: 11, xp: 12, gold: [2, 6], look: 'goblin', col: '#6f8f3a',
       atks: [{ t: 'swing', range: 38, arc: 85, windup: 0.33, cd: 0.9 }] },
     bomber: { name: 'Gobelin artificier', hp: 42, dmg: 24, speed: 95, r: 11, xp: 14, gold: [3, 7], look: 'bomber', col: '#6f8f3a', keep: 240,
       atks: [{ t: 'circle', range: 400, radius: 62, delay: 1.0, windup: 0.4, cd: 2.8, count: 1 }] },
@@ -179,81 +204,201 @@
     golem: { name: 'Golem de fer-noir', hp: 150, dmg: 26, speed: 60, r: 21, xp: 40, gold: [8, 15], look: 'golem', col: '#56565c',
       atks: [{ t: 'swing', range: 62, arc: 120, windup: 0.8, cd: 1.8 }, { t: 'charge', range: 320, min: 120, windup: 1.0, dist: 340, width: 46, cd: 7, dmgMul: 1.5 }, { t: 'nova', range: 110, radius: 125, windup: 1.2, cd: 8 }] },
 
+    // ----- Marais des Noyés -----
+    drowned: { name: 'Noyé', hp: 95, dmg: 16, speed: 68, r: 14, xp: 16, gold: [3, 7], look: 'drowned', col: '#5d7a6e',
+      atks: [{ t: 'swing', range: 46, arc: 95, windup: 0.5, cd: 1.4, slow: 0.45 }] },
+    toad: { name: 'Crapaud-buffle', hp: 70, dmg: 14, speed: 85, r: 14, xp: 16, gold: [3, 7], look: 'toad', col: '#6b7a3a', keep: 200,
+      atks: [{ t: 'shoot', range: 360, windup: 0.5, cd: 2.2, speed: 300, poison: 0.7, color: '#8aa03a' }, { t: 'charge', range: 260, min: 100, windup: 0.6, dist: 200, width: 34, cd: 6, dmgMul: 1.2 }] },
+    wisp: { name: 'Feu follet', hp: 32, dmg: 30, speed: 170, r: 9, xp: 12, gold: [2, 5], look: 'wisp', col: '#9be0d0', glow: '#9be0d0', flying: true,
+      atks: [{ t: 'explode', range: 44, radius: 72, windup: 0.55, cd: 99 }] },
+    troll: { name: 'Troll des marais', hp: 170, dmg: 26, speed: 72, r: 20, xp: 45, gold: [9, 16], look: 'troll', col: '#5d7a4e', regen: 0.02,
+      atks: [{ t: 'swing', range: 62, arc: 120, windup: 0.75, cd: 1.7 }, { t: 'nova', range: 120, radius: 135, windup: 1.1, cd: 7, dmgMul: 1.3 }, { t: 'charge', range: 300, min: 120, windup: 0.9, dist: 300, width: 46, cd: 8, dmgMul: 1.4 }] },
+
+    // ----- Bastion de la Garde Déchue -----
+    fallen: { name: 'Soldat déchu', hp: 110, dmg: 19, speed: 80, r: 14, xp: 20, gold: [4, 9], look: 'fallen', col: '#7d7366', guard: 0.7,
+      atks: [{ t: 'swing', range: 50, arc: 100, windup: 0.55, cd: 1.4 }, { t: 'combo', range: 56, arc: 110, windup: 0.5, interval: 0.45, hits: 2, cd: 5, dmgMul: 0.9, lunge: 16 }] },
+    crossbow: { name: 'Arbalétrier spectral', hp: 62, dmg: 22, speed: 70, r: 13, xp: 18, gold: [4, 9], look: 'crossbow', col: '#8fa3b0', keep: 300, glow: '#b8d0dc',
+      atks: [{ t: 'line', range: 560, len: 620, width: 18, delay: 0.95, windup: 0.3, cd: 3.4, dmgMul: 1.6, color: '#5a6f7d' }] },
+    warhound: { name: 'Molosse de guerre', hp: 60, dmg: 13, speed: 172, r: 13, xp: 14, gold: [2, 6], look: 'warhound', col: '#5a4a3e',
+      atks: [{ t: 'swing', range: 40, arc: 80, windup: 0.3, cd: 0.85 }, { t: 'charge', range: 240, min: 90, windup: 0.55, dist: 220, width: 30, cd: 5, dmgMul: 1.4 }] },
+    priest: { name: 'Prêtre corrompu', hp: 72, dmg: 16, speed: 72, r: 13, xp: 24, gold: [5, 11], look: 'priest', col: '#6a5a2a', keep: 260,
+      atks: [{ t: 'heal', range: 340, pct: 0.25, windup: 1.1, cd: 4.5 }, { t: 'circle', range: 420, radius: 60, delay: 1.1, windup: 0.4, cd: 3.6, color: '#b8862b' }] },
+    champion: { name: 'Champion parjure', hp: 210, dmg: 28, speed: 88, r: 19, xp: 55, gold: [10, 18], look: 'champion', col: '#6d6d75', guard: 0.6,
+      atks: [{ t: 'combo', range: 70, arc: 130, windup: 0.6, interval: 0.45, hits: 3, cd: 3.5, dmgMul: 0.9, lunge: 22 }, { t: 'charge', range: 340, min: 120, windup: 0.85, dist: 340, width: 48, cd: 6, dmgMul: 1.4 }] },
+
+    // ----- Bibliothèque Interdite -----
+    book: { name: 'Grimoire volant', hp: 48, dmg: 14, speed: 160, r: 10, xp: 14, gold: [2, 6], look: 'book', col: '#7a2734', erratic: true, flying: true,
+      atks: [{ t: 'swing', range: 36, arc: 80, windup: 0.3, cd: 0.8 }] },
+    apprentice: { name: 'Apprenti maudit', hp: 66, dmg: 23, speed: 80, r: 13, xp: 20, gold: [4, 10], look: 'apprentice', col: '#4a2f6a', keep: 260, blink: { range: 140, dist: 230, cd: 6 }, glow: '#a07ad0',
+      atks: [{ t: 'circle', range: 440, radius: 62, delay: 1.0, windup: 0.4, cd: 3.2, count: 2, spread: 90, color: '#7b3fa6' }, { t: 'shoot', range: 400, windup: 0.4, cd: 2.4, speed: 390, color: '#7b3fa6' }] },
+    inkslime: { name: 'Encre vivante', hp: 100, dmg: 18, speed: 72, r: 15, xp: 18, gold: [3, 8], look: 'inkslime', col: '#1d1610', split: { into: 'inkling', n: 2 },
+      atks: [{ t: 'swing', range: 44, arc: 100, windup: 0.5, cd: 1.3, slow: 0.35 }] },
+    inkling: { name: 'Gouttelette d\'encre', hp: 40, dmg: 10, speed: 115, r: 9, xp: 6, gold: [1, 2], look: 'inkling', col: '#1d1610',
+      atks: [{ t: 'swing', range: 32, arc: 80, windup: 0.35, cd: 1.0 }] },
+    gargoyle: { name: 'Gargouille', hp: 150, dmg: 25, speed: 85, r: 17, xp: 40, gold: [8, 15], look: 'gargoyle', col: '#7a7a82', flying: true,
+      atks: [{ t: 'swing', range: 54, arc: 110, windup: 0.6, cd: 1.5 }, { t: 'charge', range: 380, min: 120, windup: 0.8, dist: 380, width: 44, cd: 6, dmgMul: 1.5 }] },
+
+    // ----- Tutoriel -----
+    dummy: { name: 'Mannequin d\'entraînement', hp: 999999, dmg: 0, speed: 0, r: 15, xp: 0, gold: [0, 0], look: 'dummy', col: '#c9a46a', dummy: true, atks: [] },
+    runeStone: { name: 'Pierre runique', hp: 999999, dmg: 7, speed: 0, r: 18, xp: 0, gold: [0, 0], look: 'runeStone', col: '#7b3fa6', dummy: true, glow: '#b48ae0',
+      atks: [{ t: 'circle', range: 600, radius: 64, delay: 1.35, windup: 0.4, cd: 2.3 }] },
+    rat: { name: 'Rat d\'égout', hp: 20, dmg: 4, speed: 115, r: 9, xp: 15, gold: [1, 3], look: 'rat', col: '#6b5a4a',
+      atks: [{ t: 'swing', range: 30, arc: 80, windup: 0.45, cd: 1.2 }] },
+
     // ----- Boss -----
-    varok: { name: 'Varok le Fossoyeur', boss: true, hp: 8500, dmg: 35, speed: 82, r: 30, xp: 450, gold: [160, 230], look: 'varok', col: '#5a5047',
+    varok: { name: 'Varok le Fossoyeur', boss: true, hp: 10500, dmg: 42, speed: 82, r: 30, xp: 450, gold: [160, 230], look: 'varok', col: '#5a5047',
       intro: '« Encore un vivant qui vient creuser sa propre tombe… »',
       phases: [
         { above: 0.5, atks: [
-          { t: 'swing', range: 80, arc: 140, windup: 0.75, cd: 1.7, dmgMul: 1.2 },
-          { t: 'nova', range: 140, radius: 160, windup: 1.1, cd: 7, dmgMul: 1.6 },
-          { t: 'summon', range: 9999, windup: 1, cd: 15, mon: 'skeleton', count: 2 },
+          { t: 'swing', range: 80, arc: 140, windup: 0.7, cd: 1.6, dmgMul: 1.2 },
+          { t: 'nova', range: 140, radius: 160, windup: 1.05, cd: 7, dmgMul: 1.6 },
+          { t: 'summon', range: 9999, windup: 1, cd: 14, mon: 'skeleton', count: 2 },
         ] },
         { above: 0, msg: 'Varok enrage : « La terre vous réclame ! »', speedMul: 1.3, atks: [
-          { t: 'swing', range: 80, arc: 140, windup: 0.6, cd: 1.4, dmgMul: 1.3 },
-          { t: 'charge', range: 520, min: 120, windup: 0.85, dist: 460, width: 56, cd: 5, dmgMul: 1.6 },
-          { t: 'circle', range: 9999, radius: 62, delay: 1.2, windup: 0.4, cd: 6, count: 5, spread: 170 },
-          { t: 'summon', range: 9999, windup: 1, cd: 16, mon: 'ghoul', count: 3 },
+          { t: 'swing', range: 80, arc: 140, windup: 0.55, cd: 1.3, dmgMul: 1.3 },
+          { t: 'charge', range: 520, min: 120, windup: 0.8, dist: 460, width: 56, cd: 5, dmgMul: 1.6 },
+          { t: 'circle', range: 9999, radius: 62, delay: 1.15, windup: 0.4, cd: 5.5, count: 5, spread: 170 },
+          { t: 'summon', range: 9999, windup: 1, cd: 15, mon: 'ghoul', count: 3 },
         ] },
       ] },
-    mereRonce: { name: 'Mère-Ronce', boss: true, hp: 14000, dmg: 42, speed: 60, r: 32, xp: 900, gold: [260, 340], look: 'mereRonce', col: '#4c5e2a',
+    mereRonce: { name: 'Mère-Ronce', boss: true, hp: 17500, dmg: 50, speed: 60, r: 32, xp: 900, gold: [260, 340], look: 'mereRonce', col: '#4c5e2a',
       intro: '« Mes enfants ont faim… et vous sentez si bon. »',
       phases: [
         { above: 0.55, atks: [
-          { t: 'line', range: 9999, len: 520, width: 44, delay: 1.15, windup: 0.3, cd: 4.2, count: 3, spreadAng: 30, dmgMul: 1.1 },
-          { t: 'circle', range: 9999, radius: 70, delay: 1.3, windup: 0.3, cd: 6, count: 4, spread: 150, poison: 1 },
+          { t: 'line', range: 9999, len: 520, width: 44, delay: 1.1, windup: 0.3, cd: 4.0, count: 3, spreadAng: 30, dmgMul: 1.1 },
+          { t: 'circle', range: 9999, radius: 70, delay: 1.25, windup: 0.3, cd: 6, count: 4, spread: 150, poison: 1, pool: { dur: 5, dmgMul: 0.1 } },
           { t: 'summon', range: 9999, windup: 1.2, cd: 16, mon: 'spider', count: 2 },
         ] },
         { above: 0, msg: 'Mère-Ronce hurle : « Que la forêt vous dévore ! »', speedMul: 1.2, atks: [
-          { t: 'line', range: 9999, len: 600, width: 48, delay: 0.95, windup: 0.25, cd: 3.6, count: 5, spreadAng: 25, dmgMul: 1.25 },
+          { t: 'line', range: 9999, len: 600, width: 48, delay: 0.9, windup: 0.25, cd: 3.4, count: 5, spreadAng: 25, dmgMul: 1.25 },
           { t: 'ring', range: 9999, windup: 0.8, cd: 5, count: 16, speed: 260, dmgMul: 0.8, color: '#4c5e2a' },
           { t: 'summon', range: 9999, windup: 1.2, cd: 15, mon: 'wolf', count: 2 },
           { t: 'nova', range: 150, radius: 170, windup: 1.0, cd: 7, dmgMul: 1.8 },
         ] },
       ] },
-    grizzak: { name: 'Contremaître Grizzak', boss: true, hp: 24000, dmg: 62, speed: 90, r: 30, xp: 1500, gold: [380, 480], look: 'grizzak', col: '#6f8f3a',
+    grizzak: { name: 'Contremaître Grizzak', boss: true, hp: 30000, dmg: 74, speed: 90, r: 30, xp: 1500, gold: [380, 480], look: 'grizzak', col: '#6f8f3a',
       intro: '« Hé ! Personne entre dans MA mine sans payer ! Et le prix, c\'est ta vie ! »',
       phases: [
         { above: 0.6, atks: [
-          { t: 'charge', range: 600, min: 100, windup: 0.9, dist: 560, width: 60, cd: 4.5, dmgMul: 1.6 },
-          { t: 'circle', range: 9999, radius: 66, delay: 1.1, windup: 0.4, cd: 5, count: 6, spread: 200 },
-          { t: 'swing', range: 80, arc: 130, windup: 0.6, cd: 1.5, dmgMul: 1.2 },
+          { t: 'charge', range: 600, min: 100, windup: 0.85, dist: 560, width: 60, cd: 4.5, dmgMul: 1.6 },
+          { t: 'circle', range: 9999, radius: 66, delay: 1.05, windup: 0.4, cd: 5, count: 6, spread: 200 },
+          { t: 'swing', range: 80, arc: 130, windup: 0.55, cd: 1.4, dmgMul: 1.2 },
         ] },
         { above: 0.3, msg: 'Grizzak : « Les gars ! À moi ! »', atks: [
           { t: 'summon', range: 9999, windup: 1, cd: 12, mon: 'bomber', count: 2 },
-          { t: 'charge', range: 600, min: 100, windup: 0.8, dist: 560, width: 60, cd: 4, dmgMul: 1.6 },
-          { t: 'circle', range: 9999, radius: 66, delay: 1.0, windup: 0.4, cd: 4.5, count: 8, spread: 230 },
-          { t: 'swing', range: 80, arc: 130, windup: 0.55, cd: 1.4, dmgMul: 1.2 },
+          { t: 'charge', range: 600, min: 100, windup: 0.75, dist: 560, width: 60, cd: 4, dmgMul: 1.6 },
+          { t: 'circle', range: 9999, radius: 66, delay: 0.95, windup: 0.4, cd: 4.5, count: 8, spread: 230 },
+          { t: 'swing', range: 80, arc: 130, windup: 0.5, cd: 1.3, dmgMul: 1.2 },
         ] },
         { above: 0, msg: 'Grizzak allume toute sa réserve de poudre !', speedMul: 1.35, atks: [
           { t: 'ring', range: 9999, windup: 0.7, cd: 3.5, count: 18, speed: 300, dmgMul: 0.7, color: '#4a3b2a' },
-          { t: 'charge', range: 600, min: 100, windup: 0.7, dist: 600, width: 60, cd: 3.5, dmgMul: 1.7 },
-          { t: 'circle', range: 9999, radius: 70, delay: 0.9, windup: 0.3, cd: 4, count: 10, spread: 260 },
+          { t: 'charge', range: 600, min: 100, windup: 0.65, dist: 600, width: 60, cd: 3.5, dmgMul: 1.7 },
+          { t: 'circle', range: 9999, radius: 70, delay: 0.85, windup: 0.3, cd: 4, count: 10, spread: 260 },
+        ] },
+      ] },
+    gloumbra: { name: 'Gloumbra, l\'Hydre vaseuse', boss: true, hp: 40000, dmg: 82, speed: 55, r: 36, xp: 2600, gold: [520, 640], look: 'gloumbra', col: '#4d6b5a',
+      intro: '« Blrrrb… Trois têtes, trois fois plus faim. »',
+      phases: [
+        { above: 0.65, atks: [
+          { t: 'shoot', range: 9999, windup: 0.6, cd: 2.4, speed: 330, count: 3, spreadAng: 22, poison: 0.5, color: '#6b8f2a', dmgMul: 0.8 },
+          { t: 'circle', range: 9999, radius: 74, delay: 1.2, windup: 0.4, cd: 6, count: 4, spread: 170, pool: { dur: 6, dmgMul: 0.12 } },
+          { t: 'swing', range: 92, arc: 150, windup: 0.7, cd: 1.8, dmgMul: 1.2 },
+          { t: 'summon', range: 9999, windup: 1.2, cd: 18, mon: 'drowned', count: 2 },
+        ] },
+        { above: 0.3, msg: 'Gloumbra plonge sous la vase !', atks: [
+          { t: 'dive', range: 9999, radius: 150, windup: 1.6, cd: 7, dmgMul: 1.7 },
+          { t: 'shoot', range: 9999, windup: 0.5, cd: 2.2, speed: 350, count: 5, spreadAng: 18, poison: 0.5, color: '#6b8f2a', dmgMul: 0.8 },
+          { t: 'circle', range: 9999, radius: 74, delay: 1.1, windup: 0.4, cd: 5.5, count: 5, spread: 200, pool: { dur: 6, dmgMul: 0.12 } },
+          { t: 'swing', range: 92, arc: 150, windup: 0.6, cd: 1.6, dmgMul: 1.2 },
+        ] },
+        { above: 0, msg: 'Les têtes de Gloumbra repoussent… et elles ont faim.', speedMul: 1.25, atks: [
+          { t: 'dive', range: 9999, radius: 160, windup: 1.4, cd: 6, dmgMul: 1.8 },
+          { t: 'ring', range: 9999, windup: 0.7, cd: 4.5, count: 20, speed: 280, dmgMul: 0.7, color: '#6b8f2a', poison: 0.4 },
+          { t: 'shoot', range: 9999, windup: 0.45, cd: 2, speed: 370, count: 7, spreadAng: 15, poison: 0.5, color: '#6b8f2a', dmgMul: 0.75 },
+          { t: 'summon', range: 9999, windup: 1, cd: 16, mon: 'wisp', count: 3 },
+        ] },
+      ] },
+    halvard: { name: 'Sire Halvard le Parjure', boss: true, hp: 52000, dmg: 92, speed: 95, r: 30, xp: 4200, gold: [700, 860], look: 'halvard', col: '#7d7366',
+      intro: '« J\'ai juré de protéger Valdorne. Puis le Roi Cendré m\'a offert l\'éternité. »',
+      phases: [
+        { above: 0.7, atks: [
+          { t: 'combo', range: 100, arc: 140, windup: 0.6, interval: 0.5, hits: 3, cd: 3.2, dmgMul: 0.9, lunge: 26 },
+          { t: 'charge', range: 600, min: 140, windup: 0.8, dist: 520, width: 54, cd: 6, dmgMul: 1.5 },
+          { t: 'zone', range: 9999, radius: 95, delay: 0.9, windup: 0.4, cd: 6, dur: 6, dmgMul: 0.22, color: '#c9a227' },
+        ] },
+        { above: 0.4, msg: 'Halvard lève son bouclier : « Gardes ! Protégez votre seigneur ! »', atks: [
+          { t: 'shieldAdds', range: 9999, windup: 1.2, cd: 40, dur: 22, adds: [['fallen', 2], ['priest', 1]] },
+          { t: 'zone', range: 9999, radius: 95, delay: 0.9, windup: 0.4, cd: 5, dur: 6, dmgMul: 0.22, color: '#c9a227', count: 2, spread: 160 },
+          { t: 'combo', range: 100, arc: 140, windup: 0.55, interval: 0.45, hits: 3, cd: 3, dmgMul: 0.9, lunge: 26 },
+          { t: 'line', range: 9999, len: 560, width: 40, delay: 0.9, windup: 0.3, cd: 5, count: 3, spreadAng: 22, dmgMul: 1.2, color: '#b8862b' },
+        ] },
+        { above: 0, msg: 'Halvard : « Si je dois tomber, Valdorne tombera avec moi ! »', speedMul: 1.25, atks: [
+          { t: 'combo', range: 100, arc: 150, windup: 0.45, interval: 0.38, hits: 4, cd: 2.6, dmgMul: 0.9, lunge: 30 },
+          { t: 'charge', range: 600, min: 120, windup: 0.65, dist: 560, width: 56, cd: 4.5, dmgMul: 1.6 },
+          { t: 'line', range: 9999, len: 600, width: 42, delay: 0.85, windup: 0.25, cd: 4.2, count: 5, spreadAng: 20, dmgMul: 1.25, color: '#b8862b' },
+          { t: 'zone', range: 9999, radius: 100, delay: 0.8, windup: 0.3, cd: 5, dur: 7, dmgMul: 0.25, color: '#c9a227', count: 2, spread: 180 },
+        ] },
+      ] },
+    archiviste: { name: 'L\'Archiviste Sans-Yeux', boss: true, hp: 64000, dmg: 100, speed: 70, r: 30, xp: 6500, gold: [900, 1100], look: 'archiviste', col: '#3b3346',
+      blink: { range: 130, dist: 280, cd: 7 }, glow: '#a07ad0',
+      intro: '« Chut. Ici, même les cris doivent être murmurés. »',
+      phases: [
+        { above: 0.65, atks: [
+          { t: 'line', range: 9999, len: 600, width: 36, delay: 0.95, windup: 0.3, cd: 3.6, count: 3, spreadAng: 26, dmgMul: 1.1, color: '#3b3346' },
+          { t: 'circle', range: 9999, radius: 66, delay: 1.1, windup: 0.4, cd: 5, count: 6, spread: 220, color: '#7b3fa6' },
+          { t: 'summon', range: 9999, windup: 1, cd: 15, mon: 'book', count: 3 },
+        ] },
+        { above: 0.3, msg: 'L\'Archiviste : « Silence dans ma bibliothèque ! »', atks: [
+          { t: 'spiral', range: 9999, windup: 0.8, cd: 8, arms: 2, dur: 3.2, rate: 0.12, speed: 210, spin: 1.9, dmgMul: 0.55, color: '#3b3346' },
+          { t: 'circle', range: 9999, radius: 66, delay: 1.0, windup: 0.4, cd: 4.5, count: 6, spread: 230, color: '#7b3fa6' },
+          { t: 'summon', range: 9999, windup: 1, cd: 16, mon: 'inkslime', count: 2 },
+          { t: 'line', range: 9999, len: 600, width: 36, delay: 0.9, windup: 0.3, cd: 4, count: 3, spreadAng: 26, dmgMul: 1.1, color: '#3b3346' },
+        ] },
+        { above: 0, msg: 'L\'Archiviste ouvre le Livre Interdit !', speedMul: 1.2, atks: [
+          { t: 'spiral', range: 9999, windup: 0.6, cd: 6.5, arms: 3, dur: 3.5, rate: 0.1, speed: 230, spin: 2.3, dmgMul: 0.55, color: '#3b3346' },
+          { t: 'ring', range: 9999, windup: 0.6, cd: 5, count: 22, speed: 260, dmgMul: 0.6, color: '#3b3346' },
+          { t: 'line', range: 9999, len: 640, width: 38, delay: 0.85, windup: 0.25, cd: 3.8, count: 5, spreadAng: 22, dmgMul: 1.15, color: '#3b3346' },
+          { t: 'summon', range: 9999, windup: 1, cd: 18, mon: 'book', count: 4 },
         ] },
       ] },
   };
 
   // ---------- Donjons ----------
   // rooms : [x, y, w, h, "spawns"] (en cases). "nom:n" = n monstres, "nom!:n" = élites, "chest" = coffre, "boss".
+  // "#water", "#pillars", "#shelves", "#trees", "#statues" ajoutent des éléments de décor (toujours au même endroit).
   D.DUNGEONS = [
     { id: 1, name: 'Cryptes de Cendrefosse', lvl: 1, boss: 'varok', theme: 'crypt', w: 90, h: 64, playable: true,
       story: 'Sous le vieux cimetière, Varok le Fossoyeur relève les morts de Havre-Gris. Il garde le premier Fragment du Sceau.',
-      rooms: [[4, 28, 10, 9, 'entry'], [20, 26, 12, 12, 'skeleton:3'], [20, 6, 12, 10, 'ghoul:3 chest'], [40, 24, 16, 15, 'skeleton:3 skelArcher:2 cultist:1'],
-        [40, 46, 13, 11, 'skeleton!:1 ghoul:2 chest'], [62, 26, 12, 12, 'ghoul:4 skelArcher:2'], [60, 5, 16, 12, 'cultist:2 skeleton:3 skelArcher!:1 chest'], [64, 44, 20, 17, 'boss']],
+      rooms: [[4, 28, 10, 9, 'entry'], [20, 26, 12, 12, 'skeleton:3'], [20, 6, 12, 10, 'ghoul:3 chest'], [40, 24, 16, 15, 'skeleton:3 skelArcher:2 cultist:1 #statues'],
+        [40, 46, 13, 11, 'skeleton!:1 ghoul:2 chest'], [62, 26, 12, 12, 'ghoul:4 skelArcher:2'], [60, 5, 16, 12, 'cultist:2 skeleton:3 skelArcher!:1 chest'], [64, 44, 20, 17, 'boss #statues']],
       links: [[0, 1], [1, 2], [1, 3], [3, 4], [3, 5], [5, 6], [5, 7]] },
     { id: 2, name: 'Bois-Pendu', lvl: 4, boss: 'mereRonce', theme: 'forest', w: 90, h: 64, playable: true,
       story: 'Une forêt où les arbres ont des yeux. Mère-Ronce y tisse ses toiles autour du deuxième Fragment.',
-      rooms: [[4, 4, 10, 9, 'entry'], [18, 6, 14, 10, 'wolf:3'], [38, 4, 12, 12, 'spider:3 wolf:1'], [20, 24, 14, 14, 'wolf:2 spider:2 chest'],
-        [40, 24, 16, 14, 'treant!:1 wolf:3 spider:1'], [62, 8, 14, 12, 'spider:3 wolf:2 chest'], [62, 28, 12, 12, 'wolf:4 spider!:1'],
-        [40, 44, 14, 12, 'wolf:3 spider:3 treant:1 chest'], [62, 44, 22, 18, 'boss']],
+      rooms: [[4, 4, 10, 9, 'entry'], [18, 6, 14, 10, 'wolf:3'], [38, 4, 12, 12, 'spider:3 wolf:1'], [20, 24, 14, 14, 'wolf:2 spider:2 chest #trees'],
+        [40, 24, 16, 14, 'treant!:1 wolf:3 spider:1 #trees'], [62, 8, 14, 12, 'spider:3 wolf:2 chest'], [62, 28, 12, 12, 'wolf:4 spider!:1'],
+        [40, 44, 14, 12, 'wolf:3 spider:3 treant:1 chest'], [62, 44, 22, 18, 'boss #trees']],
       links: [[0, 1], [1, 2], [1, 3], [3, 4], [2, 5], [4, 6], [5, 6], [4, 7], [6, 8]] },
     { id: 3, name: 'Mines de Fer-Noir', lvl: 7, boss: 'grizzak', theme: 'mine', w: 90, h: 64, playable: true,
       story: 'Les gobelins ont creusé trop profond et trouvé le troisième Fragment. Leur chef Grizzak refuse de le rendre.',
-      rooms: [[40, 52, 10, 9, 'entry'], [38, 36, 14, 11, 'goblin:4'], [16, 36, 14, 12, 'bomber:2 goblin:2 chest'], [60, 36, 14, 12, 'miner:3 bomber:1'],
-        [16, 16, 14, 13, 'golem!:1 goblin:3'], [38, 16, 14, 13, 'miner:2 bomber:2 goblin:3'], [62, 16, 12, 12, 'bomber:3 miner!:1 chest'], [32, 1, 26, 13, 'boss']],
+      rooms: [[40, 52, 10, 9, 'entry'], [38, 36, 14, 11, 'goblin:4'], [16, 36, 14, 12, 'bomber:2 goblin:2 chest'], [60, 36, 14, 12, 'miner:3 bomber:1 #pillars'],
+        [16, 16, 14, 13, 'golem!:1 goblin:3'], [38, 16, 14, 13, 'miner:2 bomber:2 goblin:3 #pillars'], [62, 16, 12, 12, 'bomber:3 miner!:1 chest'], [32, 1, 26, 13, 'boss']],
       links: [[0, 1], [1, 2], [1, 3], [2, 4], [1, 5], [3, 6], [4, 5], [5, 7]] },
-    { id: 4, name: 'Marais des Noyés', lvl: 10, bossName: 'Gloumbra, l\'Hydre vaseuse' },
-    { id: 5, name: 'Bastion de la Garde Déchue', lvl: 13, bossName: 'Sire Halvard le Parjure' },
-    { id: 6, name: 'Bibliothèque Interdite', lvl: 16, bossName: 'L\'Archiviste Sans-Yeux' },
+    { id: 4, name: 'Marais des Noyés', lvl: 10, boss: 'gloumbra', theme: 'swamp', w: 96, h: 64, playable: true,
+      story: 'Un marais où les noyés ne restent jamais au fond. L\'hydre Gloumbra a avalé le quatrième Fragment.',
+      rooms: [[4, 26, 10, 10, 'entry'], [20, 22, 16, 14, 'drowned:3 toad:2 #water'], [20, 4, 14, 12, 'wisp:4 toad:1 #water chest'], [42, 20, 18, 16, 'drowned:3 toad:2 wisp:2 #water #trees'],
+        [42, 44, 14, 12, 'troll!:1 drowned:2 #water chest'], [66, 8, 16, 14, 'toad:3 wisp:3 #trees'], [66, 30, 14, 12, 'drowned:3 troll:1 #water'], [64, 46, 26, 16, 'boss #water']],
+      links: [[0, 1], [1, 2], [1, 3], [3, 4], [3, 5], [5, 6], [6, 7]] },
+    { id: 5, name: 'Bastion de la Garde Déchue', lvl: 13, boss: 'halvard', theme: 'bastion', w: 96, h: 64, playable: true,
+      story: 'Les chevaliers de Valdorne ont trahi leur serment. Leur seigneur, Sire Halvard, garde le cinquième Fragment dans la salle du trône.',
+      rooms: [[44, 54, 10, 8, 'entry'], [40, 40, 18, 10, 'fallen:2 crossbow:2 #pillars'], [18, 38, 14, 12, 'warhound:4 fallen:1'], [66, 38, 14, 12, 'priest:1 fallen:2 crossbow:1 chest'],
+        [16, 18, 16, 14, 'champion!:1 warhound:2 priest:1 #pillars'], [40, 20, 18, 14, 'fallen:3 priest:2 crossbow:2 #pillars'], [68, 18, 14, 12, 'crossbow:3 warhound:3 chest'], [34, 1, 30, 15, 'boss #pillars']],
+      links: [[0, 1], [1, 2], [1, 3], [2, 4], [1, 5], [3, 6], [4, 5], [5, 7], [5, 6]] },
+    { id: 6, name: 'Bibliothèque Interdite', lvl: 16, boss: 'archiviste', theme: 'library', w: 88, h: 64, playable: true,
+      story: 'Une bibliothèque où les livres mordent et où l\'encre rampe. L\'Archiviste Sans-Yeux y a rangé le sixième Fragment parmi les savoirs interdits.',
+      rooms: [[4, 4, 10, 9, 'entry'], [18, 4, 16, 12, 'book:4 apprentice:1 #shelves'], [40, 4, 16, 12, 'inkslime:2 book:2 apprentice:1 #shelves chest'], [18, 22, 16, 14, 'gargoyle:1 book:3 apprentice:1 #shelves'],
+        [40, 22, 18, 14, 'inkslime:3 apprentice:2 #shelves'], [64, 4, 16, 14, 'gargoyle!:1 book:3 #statues chest'], [64, 24, 16, 14, 'apprentice:2 inkslime:2 book:2 #shelves'],
+        [18, 42, 16, 12, 'inkslime:2 gargoyle:1 apprentice:1 chest #statues'], [42, 42, 40, 20, 'boss #statues']],
+      links: [[0, 1], [1, 2], [1, 3], [3, 4], [2, 5], [4, 6], [5, 6], [3, 7], [6, 8]] },
     { id: 7, name: 'Cavernes de Cristal', lvl: 19, bossName: 'Prismatrix' },
     { id: 8, name: 'Pic des Harpies', lvl: 22, bossName: 'Reine Sycorax' },
     { id: 9, name: 'Temple Englouti', lvl: 25, bossName: 'Léviathe' },
@@ -265,11 +410,16 @@
     { id: 15, name: 'Trône de Cendres', lvl: 43, bossName: 'Malgrith, le Roi Cendré' },
   ];
 
+  // dark : obscurité (0 = plein jour) · ambient : particules d'ambiance · obstacle : décor qui bloque le passage
   D.THEMES = {
-    crypt: { floor: '#e6d9bc', floorAlt: '#dccdab', wall: '#7d7366', wallDark: '#3b342d', deco: ['tomb', 'candle', 'bones', 'urn'] },
-    forest: { floor: '#dfe0b8', floorAlt: '#cfd39e', wall: '#4f6a34', wallDark: '#28361d', deco: ['mushroom', 'bush', 'stump', 'web'] },
-    mine: { floor: '#ddd0b4', floorAlt: '#cdbd9b', wall: '#6d5c48', wallDark: '#2f2820', deco: ['crate', 'rail', 'barrel', 'ore'] },
-    town: { floor: '#dfe0b8', floorAlt: '#d3d5a6', wall: '#4f6a34', wallDark: '#28361d' },
+    crypt: { floor: '#e6d9bc', floorAlt: '#dccdab', wall: '#7d7366', wallDark: '#3b342d', deco: ['tomb', 'candle', 'bones', 'urn', 'cobweb', 'skullpile'], dark: 0.55, ambient: 'dust', obstacle: 'tomb', torch: true },
+    forest: { floor: '#dfe0b8', floorAlt: '#cfd39e', wall: '#4f6a34', wallDark: '#28361d', deco: ['mushroom', 'bush', 'stump', 'web', 'fern', 'rock'], dark: 0.32, ambient: 'firefly', obstacle: 'tree' },
+    mine: { floor: '#ddd0b4', floorAlt: '#cdbd9b', wall: '#6d5c48', wallDark: '#2f2820', deco: ['crate', 'rail', 'barrel', 'ore', 'lantern', 'pickaxe'], dark: 0.6, ambient: 'ember', obstacle: 'rock', torch: true },
+    swamp: { floor: '#d6dbb0', floorAlt: '#c8cf9c', wall: '#4d5e3e', wallDark: '#24372f', water: '#7fa89a', deep: '#2f4d47', deco: ['reeds', 'lily', 'mushroom', 'bones', 'fern', 'log'], dark: 0.42, ambient: 'firefly', obstacle: 'deadtree' },
+    bastion: { floor: '#e2d8c2', floorAlt: '#d3c7ad', wall: '#7d7366', wallDark: '#2e2a26', deco: ['banner', 'armor', 'brazier', 'rubble', 'weapons', 'shieldwall'], dark: 0.5, ambient: 'ember', obstacle: 'pillar', torch: true },
+    library: { floor: '#dcc9a3', floorAlt: '#cfba92', wall: '#6b4a2c', wallDark: '#2a1d14', deco: ['books', 'candle', 'papers', 'globe', 'candelabra', 'scroll'], dark: 0.52, ambient: 'page', obstacle: 'shelf', torch: true },
+    town: { floor: '#dfe0b8', floorAlt: '#d3d5a6', wall: '#8a8478', wallDark: '#3d3832', dark: 0 },
+    tuto: { floor: '#dfe0b8', floorAlt: '#d3d5a6', wall: '#4f6a34', wallDark: '#28361d', dark: 0 },
   };
 
   // ---------- Quêtes ----------
@@ -289,6 +439,21 @@
       reward: { gold: 450, xp: 1500 } },
     { id: 'q3b', title: 'Désamorçage', dungeon: 3, type: 'kill', target: 'bomber', n: 8, lvl: 7, after: 'q2',
       text: 'Les artificiers gobelins font sauter nos galeries. Éliminez-en huit.', reward: { gold: 220, xp: 700 } },
+    { id: 'q4', main: true, title: 'L\'hydre des marais', dungeon: 4, type: 'boss', target: 'gloumbra', n: 1, lvl: 10, after: 'q3',
+      text: 'Le quatrième fragment a coulé au fond du Marais des Noyés… dans le ventre de Gloumbra, une hydre à trois têtes. Attention : elle plonge sous la vase et ressurgit là où on ne l\'attend pas.',
+      reward: { gold: 700, xp: 3000 } },
+    { id: 'q4b', title: 'Concert de crapauds', dungeon: 4, type: 'kill', target: 'toad', n: 12, lvl: 10, after: 'q3',
+      text: 'Les crapauds-buffles empoisonnent les puits du sud. Faites-en taire douze.', reward: { gold: 350, xp: 1400 } },
+    { id: 'q5', main: true, title: 'Le serment brisé', dungeon: 5, type: 'boss', target: 'halvard', n: 1, lvl: 13, after: 'q4',
+      text: 'Sire Halvard était notre plus grand chevalier. Il a vendu son âme au Roi Cendré. Il garde le cinquième fragment dans la salle du trône du Bastion. Tant que ses gardes vivent, son bouclier tient.',
+      reward: { gold: 1000, xp: 5000 } },
+    { id: 'q5b', title: 'Fausses prières', dungeon: 5, type: 'kill', target: 'priest', n: 6, lvl: 13, after: 'q4',
+      text: 'Les prêtres corrompus soignent les soldats déchus. Abattez-les en premier : six suffiront à briser leur ordre.', reward: { gold: 500, xp: 2200 } },
+    { id: 'q6', main: true, title: 'Les savoirs interdits', dungeon: 6, type: 'boss', target: 'archiviste', n: 1, lvl: 16, after: 'q5',
+      text: 'L\'Archiviste Sans-Yeux a classé le sixième fragment parmi ses livres interdits. Il ne voit rien, mais il entend tout. Et sa bibliothèque se défend.',
+      reward: { gold: 1400, xp: 8000 } },
+    { id: 'q6b', title: 'Taches d\'encre', dungeon: 6, type: 'kill', target: 'inkslime', n: 10, lvl: 16, after: 'q5',
+      text: 'L\'encre vivante se divise quand on la frappe. Détruisez dix de ces horreurs avant qu\'elles n\'atteignent les archives de la ville.', reward: { gold: 700, xp: 3200 } },
   ];
 
   // ---------- Objets ----------
@@ -318,12 +483,34 @@
     berserker: ['Haches jumelles', 'Grande hache', 'Hachoir'], barde: ['Luth', 'Harpe', 'Flûte de guerre'],
   };
   D.SUFFIX = ['du Loup', 'de l\'Ours', 'du Faucon', 'de la Braise', 'du Givre', 'des Ombres', 'de l\'Aube', 'du Sanglier', 'de la Tempête',
-    'des Anciens', 'du Crépuscule', 'de la Marée', 'du Corbeau', 'de l\'Éclipse', 'du Serment', 'des Cendres'];
-  D.LEGENDARY = ['Cendrelame', 'Murmure-du-Néant', 'Cœur de Varok', 'Chant des Ronces', 'Fer-Maudit', 'Larme de l\'Aube', 'Ultime Serment', 'Briseur de Sceaux'];
+    'des Anciens', 'du Crépuscule', 'de la Marée', 'du Corbeau', 'de l\'Éclipse', 'du Serment', 'des Cendres', 'des Marais', 'du Parjure', 'de l\'Archive'];
+  D.LEGENDARY = ['Cendrelame', 'Murmure-du-Néant', 'Cœur de Varok', 'Chant des Ronces', 'Fer-Maudit', 'Larme de l\'Aube', 'Ultime Serment', 'Briseur de Sceaux',
+    'Croc de Gloumbra', 'Serment d\'Halvard', 'Page Interdite'];
   D.STAT_NAMES = { pow: 'Puissance', vit: 'Vitalité', arm: 'Armure', crit: 'Critique', haste: 'Hâte' };
 
-  D.POTION_PRICE = (lvl) => 20 + lvl * 6;
-  D.MAX_POTIONS = 5;
+  // ---------- Habitants de Havre-Gris (ambiance) ----------
+  D.VILLAGERS = [
+    { name: 'Odette', body: '#a0703a', hat: '#efe7d0' }, { name: 'Gaspard', body: '#4f6b2b', hat: '#6b4a2c' },
+    { name: 'Mireille', body: '#8a3b2a', hat: null }, { name: 'Bastien', body: '#2c5f9e', hat: '#c9a227' },
+    { name: 'Agathe', body: '#6a3f86', hat: '#efe7d0' }, { name: 'Firmin', body: '#7c6a52', hat: '#3e5622' },
+  ];
+  D.RUMORS = [
+    'On dit que les morts remuent sous le vieux cimetière…',
+    'Mon cousin est parti à Bois-Pendu. On n\'a retrouvé que ses bottes.',
+    'Les gobelins des mines vendent leur poudre à qui paie. Même au Roi Cendré.',
+    'Borin a forgé une épée +10 une fois. Une seule fois. Il en parle encore.',
+    'Si tu meurs en donjon, les gardes te ramènent. Mais pas ton or !',
+    'Le marais pue la vase… et quelque chose y respire, sous l\'eau.',
+    'Sire Halvard était un héros. Je l\'ai vu défiler, quand j\'étais petite.',
+    'La bibliothèque interdite ? Les livres y mordent, paraît-il.',
+    'Ysolde change son stock à chaque retour de donjon. Passe la voir souvent !',
+    'Maître Ilian dit que la patience est la première des armes. Moi, je préfère une hache.',
+    'Les zones rouges hachurées ? Sors-en vite. Très vite.',
+    'Un nécromancien a relevé un boss, une fois. Un sur cent, qu\'on dit.',
+  ];
+
+  D.POTION_PRICE = (lvl) => 24 + lvl * 7;
+  D.MAX_POTIONS = 4;
   D.BAG_SIZE = 30;
   D.MAX_LEVEL = 50;
   D.xpNext = (lvl) => Math.round(90 * Math.pow(lvl, 1.65));

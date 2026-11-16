@@ -303,9 +303,35 @@
     },
   };
 
+  R.humanoid = humanoid; R.weapon = weapon; R.shadow = shadow;
+  R.CLS = CLASS_LOOK; R.MON = MON_LOOK; R.NPC = NPC_LOOK;
+
+  // Bulle de dialogue dessinée
+  R.bubble = function (g, x, y, text, alpha) {
+    const words = String(text).split(' '), lines = [];
+    let cur = '';
+    words.forEach((w) => { if ((cur + ' ' + w).trim().length > 30) { lines.push(cur.trim()); cur = w; } else cur += ' ' + w; });
+    if (cur.trim()) lines.push(cur.trim());
+    g.font = "17px 'Patrick Hand', 'Comic Sans MS', cursive";
+    const wMax = Math.max(...lines.map((l) => g.measureText(l).width)) + 22, h = lines.length * 19 + 12;
+    const bx = x - wMax / 2, by = y - h - 12;
+    g.globalAlpha = alpha == null ? 1 : alpha;
+    S.begin(Math.floor(x + y), true);
+    S.poly(g, [[bx, by], [bx + wMax, by], [bx + wMax, by + h], [x + 8, by + h], [x - 2, by + h + 11], [x - 4, by + h], [bx, by + h]], { fill: '#f7eed7', fillA: 0.97, w: 1.5, over: 1 });
+    g.fillStyle = INK; g.textAlign = 'center'; g.textBaseline = 'middle';
+    lines.forEach((l, i) => g.fillText(l, x, by + 12 + i * 19));
+    g.globalAlpha = 1;
+  };
+
   // ---------- Dessin d'une unité ----------
   R.unit = function (g, u) {
     S.begin(u.id);
+    if (u.hidden) {
+      const t = G.Game.time;
+      for (let i = 0; i < 3; i++) { g.globalAlpha = 0.5 - i * 0.12; S.circle(g, u.x, u.y, 14 + i * 9 + Math.sin(t * 6 + i) * 3, { ry: 6 + i * 4, stroke: '#2f4d47', w: 1.5, single: true }); }
+      g.globalAlpha = 1;
+      return;
+    }
     const isBoss = u.boss;
     shadow(g, u.x, u.y + 2, u.r * (isBoss ? 1.1 : 1));
     let alpha = 1;
@@ -335,27 +361,47 @@
       for (let i = 0; i < 3; i++) S.text(g, u.sleep ? 'z' : '*', u.x + Math.cos(t + i * 2.1) * 10, u.y - u.r * 2.1 + Math.sin(t + i * 2.1) * 3, 16, '#c9a227', 'center', '#2b2118');
     }
     if (u.shield > 0) { g.globalAlpha = 0.35; S.circle(g, u.x, u.y - 8, u.r + 10, { stroke: '#6fb1d9', w: 2.5, single: true }); g.globalAlpha = 1; }
+    if (u.shielded) {
+      const t = G.Game.time;
+      g.globalAlpha = 0.18 + 0.08 * Math.sin(t * 5); g.fillStyle = '#e2c043';
+      g.beginPath(); g.ellipse(u.x, u.y - u.r * 0.6, u.r + 22, u.r + 26, 0, 0, G.TAU); g.fill();
+      g.globalAlpha = 0.8; S.circle(g, u.x, u.y - u.r * 0.6, u.r + 22, { ry: u.r + 26, stroke: '#c9a227', w: 2.2 });
+      g.globalAlpha = 1;
+    }
+    if (u.def && u.def.guard && !u.minion && !u.cast && !(u.stunT > 0)) {
+      const sx = u.x + Math.cos(u.aim) * u.r * 0.9, sy = u.y - u.r * 0.7 + Math.sin(u.aim) * u.r * 0.5;
+      S.poly(g, [[sx - 8, sy - 10], [sx + 8, sy - 10], [sx + 8, sy + 2], [sx, sy + 12], [sx - 8, sy + 2]], { fill: '#8a8c92', w: 1.4 });
+      S.line(g, sx, sy - 8, sx, sy + 8, 1.2, '#c9a227', 0.4, 1);
+    }
+    if (u.enraged) { g.globalAlpha = 0.35 + 0.15 * Math.sin(G.Game.time * 8); S.circle(g, u.x, u.y, u.r + 14, { ry: (u.r + 14) * 0.45, stroke: '#9b2c20', w: 3, single: true }); g.globalAlpha = 1; }
+    if (u.bubble && u.bubble.t > 0) R.bubble(g, u.x, u.y - u.r * 2.6 - 6, u.bubble.text, Math.min(1, u.bubble.t * 2));
     if (u.invulnFx) { g.globalAlpha = 0.5; S.circle(g, u.x, u.y - 8, u.r + 12, { stroke: '#e2c043', w: 3, single: true }); g.globalAlpha = 1; }
     g.globalAlpha = 1;
   };
 
   R.npc = function (g, n) {
     S.begin(n.id || 7);
-    if (n.look !== 'portal') shadow(g, n.x, n.y + 2, 13);
-    NPC_LOOK[n.look](g, n);
-    S.text(g, n.name, n.x, n.y - (n.look === 'portal' ? 34 : 40), 19, '#2b2118', 'center', 'rgba(236,224,196,0.9)');
-    S.text(g, n.title, n.x, n.y - (n.look === 'portal' ? 18 : 25), 14, n.col, 'center', 'rgba(236,224,196,0.9)');
+    if (!n.noShadow && n.look !== 'portal' && n.look !== 'citygate') shadow(g, n.x, n.y + 2, n.small ? 7 : 13);
+    if (NPC_LOOK[n.look]) NPC_LOOK[n.look](g, n);
+    if (n.title) {
+      S.text(g, n.name, n.x, n.y - (n.look === 'portal' ? 34 : n.look === 'citygate' ? 60 : 40), 19, '#2b2118', 'center', 'rgba(236,224,196,0.9)');
+      S.text(g, n.title, n.x, n.y - (n.look === 'portal' ? 18 : n.look === 'citygate' ? 44 : 25), 14, n.col, 'center', 'rgba(236,224,196,0.9)');
+    } else if (n.showName) S.text(g, n.name, n.x, n.y - 38, 15, '#5a4a3a', 'center', 'rgba(236,224,196,0.8)');
+    if (n.bubble && n.bubble.t > 0) R.bubble(g, n.x, n.y - (n.small ? 18 : 46), n.bubble.text, Math.min(1, n.bubble.t * 2));
   };
 
   // Barre de vie au-dessus des ennemis
   R.hpBar = function (g, u) {
-    if (u.boss || u.hp >= u.maxHp) return;
+    if (u.boss || u.dummyUnit || (u.hp >= u.maxHp && !(u.elite && !u.minion && u.aggro))) return;
     const w = Math.max(26, u.r * 2.4), x = u.x - w / 2, y = u.y - u.r * 2 - 14;
     g.fillStyle = 'rgba(43,33,24,0.25)'; g.fillRect(x, y, w, 4);
     g.fillStyle = u.faction === 'p' ? '#4f8a2a' : '#9b2c20';
     g.fillRect(x, y, w * Math.max(0, u.hp / u.maxHp), 4);
     g.strokeStyle = INK; g.lineWidth = 0.8; g.strokeRect(x, y, w, 4);
-    if (u.elite && !u.minion) S.text(g, '★', x - 7, y + 2, 12, '#c9a227');
+    if (u.elite && !u.minion) {
+      S.text(g, '★', x - 7, y + 2, 12, '#c9a227');
+      if (u.affixText) S.text(g, u.affixText, u.x, y - 9, 14, '#7a2734', 'center', 'rgba(236,224,196,0.85)');
+    }
   };
 
   // ---------- Projectiles ----------

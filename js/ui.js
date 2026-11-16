@@ -14,6 +14,7 @@
           <div class="bar" id="hpbar"><i></i><i class="shield"></i><span></span></div>
           <div class="bar" id="resbar"><i></i><span></span></div></div>
         <div id="buffs"></div>
+        <div id="tutobox" class="sk live" hidden><div class="tuto-head" id="tutohead"></div><div id="tutotext"></div><div class="tuto-foot"><span id="tutoprog"></span><button id="tutoskip">Passer le tutoriel</button></div></div>
         <div id="info" class="sk"><div id="zone"></div><div id="wallet"></div><div id="tracker"></div></div>
         <div id="bossbar" class="sk" hidden><div id="bossname"></div><div class="bar"><i></i><span></span></div></div>
         <div id="hotwrap"><div class="bar" id="xpbar"><i></i><span></span></div><div id="hotbar" class="sk live"></div></div>
@@ -24,6 +25,7 @@
       <div id="screen" class="screen live" hidden></div>
       <div id="tip" class="sk" hidden></div>`;
     $('pclose').onclick = () => UI.closePanel();
+    $('tutoskip').onclick = () => G.Tuto && G.Tuto.skip();
     $('pbody').addEventListener('click', onPanelClick);
     $('pbody').addEventListener('contextmenu', onPanelRightClick);
     $('ui').addEventListener('mouseover', (e) => { const t = e.target.closest('[data-tip]'); tipRef = t ? t.dataset.tip : null; showTip(t); });
@@ -93,7 +95,8 @@
       <div class="classes">${cards}</div>
       <div id="clsdesc"></div>
       <div class="row"><label for="cname" style="font-size:20px">Nom du héros</label><input type="text" id="cname" maxlength="16" autocomplete="off" spellcheck="false" placeholder="Votre nom">
-      <button class="main" id="cgo">Entrer à Havre-Gris</button><button id="cback">Retour</button></div>
+      <button class="main" id="cgo">Commencer l'aventure</button><button id="cback">Retour</button></div>
+      <label class="row" style="font-size:18px;gap:8px"><input type="checkbox" id="cskip"> Passer le tutoriel (je connais déjà le jeu)</label>
       <div class="msg" id="cmsg" style="color:var(--blood)"></div>`;
     sc.querySelectorAll('canvas[data-prev]').forEach((cv) => {
       const g = cv.getContext('2d');
@@ -114,11 +117,12 @@
       if (b.id === 'cgo') {
         const name = $('cname').value.trim();
         if (name.length < 2) { $('cmsg').textContent = 'Le nom doit faire au moins 2 caractères.'; return; }
-        const ch = Game.newChar(name, sel);
+        const skip = $('cskip').checked;
+        const ch = Game.newChar(name, sel, skip);
         G.Save.data.chars.push(ch); G.Save.data.last = G.Save.data.chars.length - 1;
         sc.hidden = true;
         Game.start(ch);
-        UI.toast('Bienvenue à Havre-Gris, ' + name + ' ! Parlez au Capitaine Aldric (Garnison).', '#4f6b2b', 6);
+        if (skip) UI.toast('Bienvenue à Havre-Gris, ' + name + ' ! Parlez au Capitaine Aldric (Garnison).', '#4f6b2b', 6);
       }
     };
     sc.onkeydown = (e) => { const c = e.target.closest && e.target.closest('.cls'); if (c && (e.key === 'Enter' || e.key === ' ')) { sel = c.dataset.cls; upd(); } };
@@ -132,7 +136,8 @@
     $('hud').hidden = false;
     UI.bossBar(null);
     const sc = Game.scene, ch = Game.char, C = D.CLASSES[ch.cls];
-    $('zone').textContent = sc.kind === 'town' ? 'Havre-Gris' : sc.def.name;
+    $('zone').textContent = sc.kind === 'town' ? 'Havre-Gris' : sc.kind === 'tuto' ? 'Camp des recrues' : sc.def.name;
+    if (sc.kind !== 'tuto') $('tutobox').hidden = true;
     $('portrait').textContent = C.name[0];
     $('portrait').style.background = C.color;
     $('resbar').querySelector('i').style.background = D.RES[C.res].color;
@@ -167,7 +172,7 @@
     for (const el of slots) {
       const s = el.dataset.slot;
       let cd = 0, max = 1;
-      if (s === 'p') { cd = p.potionCd; max = 12; }
+      if (s === 'p') { cd = p.potionCd; max = D.POTION_CD; }
       else {
         cd = p.cds[s] || 0; max = p.cdMax[s] || 1;
         const ab = Game.abilityDef(+s);
@@ -204,6 +209,15 @@
     if (q.type === 'boss') return 'Vaincre ' + D.MONSTERS[q.target].name + ' —';
     return 'Tuer : ' + D.MONSTERS[q.target].name + ' —';
   }
+
+  UI.tuto = function (o) {
+    const b = $('tutobox');
+    if (!o) { b.hidden = true; return; }
+    b.hidden = false;
+    $('tutohead').textContent = 'Tutoriel — étape ' + o.step + ' / ' + o.total;
+    $('tutotext').textContent = o.text;
+    $('tutoprog').textContent = o.prog || '';
+  };
 
   UI.toast = function (msg, color, dur) {
     const box0 = $('toasts');
@@ -256,8 +270,7 @@
   function itemCell(it, ref, label) {
     if (!it) return `<div class="cell empty">${label || ''}</div>`;
     const col = D.RARITY[it.rarity].color;
-    const short = it.rarity === 4 ? '★' : it.base.split(' ')[0].slice(0, 8);
-    return `<div class="cell" data-ref="${ref}" data-tip="it:${ref}" style="border-color:${col};background:${col}22"><span class="nm" style="color:${col}">${esc(short)}</span><span>${D.SLOT_NAMES[it.slot]}</span>${it.up ? `<span class="up">+${it.up}</span>` : ''}${it.run ? '<span class="run" title="Butin de ce donjon">●</span>' : ''}</div>`;
+    return `<div class="cell" data-ref="${ref}" data-tip="it:${ref}" style="border-color:${col};background:${col}22"><img src="${G.Icons.item(it)}" alt="${esc(it.name)}" draggable="false">${it.up ? `<span class="up">+${it.up}</span>` : ''}${it.run ? '<span class="run" title="Butin de ce donjon">●</span>' : ''}${it.rarity === 4 ? '<span class="leg">★</span>' : ''}</div>`;
   }
   function bagGrid() {
     const ch = Game.char;
@@ -323,7 +336,7 @@
         title: 'Boutique d\'Ysolde', sub: `Vous avez ${G.fmt(ch.gold)} or`,
         body: `<div class="say"><b>Ysolde :</b> « Potions fraîches, équipement d'occasion… Je rachète tout ce que tu rapportes des donjons. Mon stock change à chaque retour de donjon. »</div>
           <div class="cols"><div><div class="sectitle">À vendre</div><div class="grid" style="grid-template-columns:repeat(4,64px);row-gap:12px">${stock}</div>
-          <div class="sectitle" style="margin-top:14px">Potions de soin</div><p style="margin:0 0 8px">Rend 35 % de votre vie (touche R). Vous en avez ${ch.potions} / ${D.MAX_POTIONS}.</p>
+          <div class="sectitle" style="margin-top:14px">Potions de soin</div><p style="margin:0 0 8px">Rend ${Math.round(D.POTION_HEAL * 100)} % de votre vie (touche R, recharge ${D.POTION_CD} s). Vous en avez ${ch.potions} / ${D.MAX_POTIONS}.</p>
           <button class="main" data-potion="1" ${ch.potions >= D.MAX_POTIONS || ch.gold < pp ? 'disabled' : ''}>Acheter une potion (${pp} or)</button></div>
           <div><div class="sectitle">Votre sac — clic pour vendre</div>${bagGrid()}<div class="row" style="margin-top:10px"><button data-sellgrey="1">Vendre tous les objets communs (gris)</button></div><div class="msg" id="smsg"></div></div></div>`,
       };
@@ -473,7 +486,7 @@
     let h = '';
     if (ref.startsWith('it:')) h = itemTip(ref.slice(3));
     else if (ref.startsWith('ab:')) h = abilTip(+ref.slice(3));
-    else if (ref === 'potion') h = `<h4 style="color:var(--blood)">Potion de soin</h4>Rend 35 % de votre vie. Recharge : 12 s.<br>Vous en avez ${Game.char.potions} / ${D.MAX_POTIONS}. En vente chez Ysolde.`;
+    else if (ref === 'potion') h = `<h4 style="color:var(--blood)">Potion de soin</h4>Rend ${Math.round(D.POTION_HEAL * 100)} % de votre vie. Recharge : ${D.POTION_CD} s.<br>Vous en avez ${Game.char.potions} / ${D.MAX_POTIONS}. En vente chez Ysolde.`;
     if (!h) { tip.hidden = true; return; }
     tip.innerHTML = h; tip.hidden = false;
     const r = el.getBoundingClientRect(), sr = $('stage').getBoundingClientRect(), sc = sr.width / 1280;
