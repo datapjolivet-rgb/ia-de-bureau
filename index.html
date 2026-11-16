@@ -159,6 +159,14 @@ input[type=text] { font-family: var(--f-title); font-size: 28px; font-weight: 70
 .box { padding: 20px 28px; max-width: 640px; display: flex; flex-direction: column; gap: 10px; align-items: center; text-align: center; }
 .box h2 { font-size: 56px; }
 .lost { list-style: none; margin: 0; padding: 0; font-size: 18px; display: flex; flex-direction: column; gap: 3px; }
+.hc { display: inline-block; margin-left: 8px; padding: 1px 7px; font-family: var(--f-ui); font-size: 13px; font-weight: 400; line-height: 1.2; letter-spacing: 0.04em; color: #f7eed7; background: var(--blood); border-radius: 8px 3px 8px 3px; vertical-align: middle; }
+.charcard.hardcore { border-color: var(--blood); }
+.hcpick b { color: var(--blood); }
+button.danger-main { background: var(--blood); border-color: var(--blood); color: #f7eed7; }
+button.danger-main:hover:not(:disabled) { background: #7d2218; }
+#graveyard { position: absolute; left: 20px; bottom: 16px; width: 430px; padding: 8px 14px 10px; font-size: 14px; line-height: 1.35; background: rgba(226,211,174,0.95); border-color: #6b5a46; }
+#graveyard h3 { font-size: 22px; color: #5a4a3a; }
+#graveyard ul { margin: 4px 0 0; padding-left: 16px; }
 #small-note { position: absolute; inset: 0; display: none; place-items: center; text-align: center; padding: 24px max(16px, env(safe-area-inset-left, 0px)); background: var(--table); color: var(--paper); font-size: 22px; z-index: 50; }
 @media (max-width: 700px), (max-height: 380px) { #small-note { display: grid; } }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }

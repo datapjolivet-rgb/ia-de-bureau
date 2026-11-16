@@ -14,12 +14,12 @@
   const tuto = (ev, data) => { if (G.Tuto && Game.scene && Game.scene.kind === 'tuto') G.Tuto.event(ev, data); };
 
   // ================= Personnage =================
-  Game.newChar = function (name, cls, skipTuto) {
+  Game.newChar = function (name, cls, skipTuto, hardcore) {
     return {
       name, cls, lvl: 1, xp: 0, gold: 40, potions: 3,
       equip: { arme: I.make({ cls, slot: 'arme', rarity: 0, ilvl: 1 }), torse: I.make({ cls, slot: 'torse', rarity: 0, ilvl: 1 }) },
       bag: [], abil: { 1: 1, 2: 1 }, talents: {}, quests: {}, cleared: 0, boundBoss: null, deaths: 0, kills: {}, shop: null,
-      tuto: skipTuto ? 'done' : 'todo', created: Date.now(),
+      tuto: skipTuto ? 'done' : 'todo', hardcore: !!hardcore, time: 0, created: Date.now(),
     };
   };
 
@@ -342,6 +342,7 @@
       }
       if (amt <= 0) return 0;
       tgt.hp -= amt; tgt.hitT = 0.15;
+      if (tgt.isPlayer) tgt.lastHit = (src && src.name) || o.cause || tgt.lastHit;
       if (src && src.vamp && !src.dead) { src.hp = Math.min(src.maxHp, src.hp + amt * src.vamp); }
       if (tgt.isPlayer) {
         tgt.combatT = 0;
@@ -448,7 +449,7 @@
     if (u.look !== 'wisp') sc.corpses.push({ id: G.uid(), x: u.x, y: u.y, type: u.type, elite: u.elite, boss: u.boss, lvl: u.lvl, r: u.r, t: 0, life: u.boss ? 120 : 25, tried: false });
     // élite explosive
     if (u.explosive) {
-      sc.hazards.push({ id: G.uid(), shape: 'circle', x: u.x, y: u.y, r: 95, t: 0, delay: 1.0, dmg: u.dmg * 1.8, faction: 'e', src: null, color: '#c4661a', bomb: true });
+      sc.hazards.push({ id: G.uid(), shape: 'circle', x: u.x, y: u.y, r: 95, t: 0, delay: 1.0, dmg: u.dmg * 1.8, faction: 'e', src: null, color: '#c4661a', bomb: true, cause: u.name + ' (explosion)' });
       text(u.x, u.y - 40, 'Explosif !', '#c4661a', 22);
     }
     // l'encre se divise
@@ -749,7 +750,7 @@
       ring(k.x, k.y, 90, '#9b2c20', 0.4);
       parts(k.x, k.y, 16, '#7a2734', 'ink', 240);
       decal(k.x, k.y, 16, '#7a2734');
-      dealDamage(null, p, p.maxHp * 0.1, { trueDmg: true });
+      dealDamage(null, p, p.maxHp * 0.1, { trueDmg: true, cause: 'un cadavre qui a explosé' });
       Game.shake(8);
     }
   }
@@ -1265,6 +1266,7 @@
     const sc = Game.scene;
     if (!sc || Game.mode !== 'play' || Game.paused) return;
     Game.time += dt;
+    if (Game.char) Game.char.time = (Game.char.time || 0) + dt;
     S.boil = Math.floor(Game.time * 7);
     const p = Game.player, m = sc.map;
     Game.mouse.wx = Game.mouse.x + Game.cam.x;
@@ -1395,7 +1397,7 @@
         if (u.isPlayer) hitPlayer = true;
         if (h.mult) { const rd = rollDmg(h.src, h.mult); hitUnit(h.src, u, rd.d, { crit: rd.crit, stun: h.stun, sleep: h.sleep, slow: h.slow }); }
         else {
-          dealDamage(h.src, u, h.dmg);
+          dealDamage(h.src, u, h.dmg, { cause: h.cause });
           if (u.faction === 'p' && !u.dead && !isInvuln(u)) {
             if (h.poison) u.dots.push({ dps: h.dmg * 0.4, t: 3, acc: 0, src: h.src });
             if (h.slow) { u.slowT = 1.8; u.slowAmt = Math.max(u.slowAmt || 0, h.slow); }
@@ -1524,6 +1526,19 @@
     }
     Game.mode = 'dead';
     G.UI.bossBar(null);
+    if (ch.hardcore) {
+      // Mode Hardcore : une seule vie, le héros est effacé et gravé au cimetière
+      const kills = Object.values(ch.kills || {}).reduce((a, b) => a + b, 0);
+      const mem = { name: ch.name, cls: ch.cls, lvl: ch.lvl, cleared: ch.cleared, kills, cause: p.lastHit || 'une force inconnue',
+        place: sc.kind === 'dungeon' ? sc.def.name : 'Havre-Gris', time: Math.round(ch.time || 0), date: Date.now() };
+      const data = G.Save.data;
+      data.chars = data.chars.filter((c) => c !== ch);
+      data.last = 0;
+      data.graveyard = [mem].concat(data.graveyard || []).slice(0, 20);
+      Game.save(true);
+      setTimeout(() => G.UI.showHardcoreDeath(mem), 1100);
+      return;
+    }
     const lost = { items: [], gold: 0, destroyed: null, dungeon: sc.kind === 'dungeon' ? sc.def.name : 'Havre-Gris' };
     ch.bag = ch.bag.filter((it) => { if (it.run) { lost.items.push(it); return false; } return true; });
     D.SLOTS.forEach((s) => { const it = ch.equip[s]; if (it && it.run) { lost.items.push(it); ch.equip[s] = null; } });

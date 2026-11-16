@@ -42,8 +42,8 @@
     sc.className = 'screen live'; sc.hidden = false;
     const chars = data.chars.map((c, i) => {
       const C = D.CLASSES[c.cls];
-      return `<div class="charcard sk"><h3>${esc(c.name)}</h3><div class="muted">${C.name} · niveau ${c.lvl}</div>
-        <div class="muted">${c.cleared}/15 donjons · ${c.deaths} mort${c.deaths > 1 ? 's' : ''}</div>
+      return `<div class="charcard sk${c.hardcore ? ' hardcore' : ''}"><h3>${esc(c.name)}${c.hardcore ? '<span class="hc">Hardcore</span>' : ''}</h3><div class="muted">${C.name} · niveau ${c.lvl}</div>
+        <div class="muted">${c.cleared}/15 donjons · ${c.hardcore ? 'une seule vie' : c.deaths + ' mort' + (c.deaths > 1 ? 's' : '')}</div>
         <div class="row"><button class="main" data-play="${i}">Jouer</button><button class="danger" data-del="${i}">Supprimer</button></div></div>`;
     }).join('');
     sc.innerHTML = `<canvas id="title-canvas" width="1280" height="720"></canvas>
@@ -51,7 +51,8 @@
       <p style="max-width:640px;text-align:center;font-size:19px;margin:0">Le Roi Cendré a brisé le Sceau des Quinze. Ses lieutenants gardent chacun un fragment au fond d'un donjon. Havre-Gris est le dernier bastion.</p>
       ${chars ? `<div class="chars">${chars}</div>` : '<p class="muted" style="margin:0">Aucun héros pour l\'instant.</p>'}
       <button class="main" id="newchar" ${data.chars.length >= 6 ? 'disabled' : ''}>Créer un nouveau héros</button>
-      <p class="muted" style="margin:0;font-size:15px">${G.Save.whereText()}</p>`;
+      <p class="muted" style="margin:0;font-size:15px">${G.Save.whereText()}</p>
+      ${graveyardHTML(data)}`;
     drawTitleBg($('title-canvas'));
     sc.onclick = (e) => {
       const b = e.target.closest('button'); if (!b) return;
@@ -96,7 +97,8 @@
       <div id="clsdesc"></div>
       <div class="row"><label for="cname" style="font-size:20px">Nom du héros</label><input type="text" id="cname" maxlength="16" autocomplete="off" spellcheck="false" placeholder="Votre nom">
       <button class="main" id="cgo">Commencer l'aventure</button><button id="cback">Retour</button></div>
-      <label class="row" style="font-size:18px;gap:8px"><input type="checkbox" id="cskip"> Passer le tutoriel (je connais déjà le jeu)</label>
+      <div class="row" style="gap:28px;font-size:18px"><label class="row" style="gap:8px"><input type="checkbox" id="cskip"> Passer le tutoriel</label>
+      <label class="row hcpick" style="gap:8px"><input type="checkbox" id="chc"> <b>Mode Hardcore</b> : une seule vie. À sa mort, le héros est effacé pour toujours.</label></div>
       <div class="msg" id="cmsg" style="color:var(--blood)"></div>`;
     sc.querySelectorAll('canvas[data-prev]').forEach((cv) => {
       const g = cv.getContext('2d');
@@ -118,7 +120,7 @@
         const name = $('cname').value.trim();
         if (name.length < 2) { $('cmsg').textContent = 'Le nom doit faire au moins 2 caractères.'; return; }
         const skip = $('cskip').checked;
-        const ch = Game.newChar(name, sel, skip);
+        const ch = Game.newChar(name, sel, skip, $('chc').checked);
         G.Save.data.chars.push(ch); G.Save.data.last = G.Save.data.chars.length - 1;
         sc.hidden = true;
         Game.start(ch);
@@ -126,6 +128,10 @@
       }
     };
     sc.onkeydown = (e) => { const c = e.target.closest && e.target.closest('.cls'); if (c && (e.key === 'Enter' || e.key === ' ')) { sel = c.dataset.cls; upd(); } };
+    $('chc').onchange = () => {
+      $('cgo').textContent = $('chc').checked ? 'Commencer (une seule vie)' : 'Commencer l\'aventure';
+      $('cgo').classList.toggle('danger-main', $('chc').checked);
+    };
     setTimeout(() => $('cname').focus(), 50);
   };
 
@@ -162,7 +168,7 @@
     const rb = $('resbar');
     rb.children[0].style.width = (100 * p.res / p.resMax).toFixed(1) + '%';
     rb.children[1].textContent = Math.floor(p.res) + ' / ' + p.resMax;
-    $('pname').innerHTML = `${esc(ch.name)} <small>Niv. ${ch.lvl} ${D.CLASSES[ch.cls].name}</small>`;
+    $('pname').innerHTML = `<span>${esc(ch.name)}${ch.hardcore ? '<span class="hc">HC</span>' : ''}</span><small>Niv. ${ch.lvl} ${D.CLASSES[ch.cls].name}</small>`;
     const need = D.xpNext(ch.lvl);
     $('xpbar').children[0].style.width = (ch.lvl >= D.MAX_LEVEL ? 100 : (100 * ch.xp) / need).toFixed(1) + '%';
     $('xpbar').children[1].textContent = ch.lvl >= D.MAX_LEVEL ? 'Niveau maximum' : 'Expérience ' + G.fmt(ch.xp) + ' / ' + G.fmt(need);
@@ -542,6 +548,29 @@
     };
   };
   UI.closeConfirm = function () { const sc = $('screen'); if (!sc.hidden && sc.classList.contains('dim') && sc.querySelector('#cno')) { sc.querySelector('#cno').click(); return true; } return false; };
+
+  function graveyardHTML(data) {
+    const g = (data.graveyard || []).slice(0, 4);
+    if (!g.length) return '';
+    return `<div id="graveyard" class="sk"><h3>Cimetière des héros</h3><ul>${g.map((m) =>
+      `<li><b>${esc(m.name)}</b> — ${D.CLASSES[m.cls] ? D.CLASSES[m.cls].name : ''} niv. ${m.lvl} · ${esc(m.place)} · cause de la mort : ${esc(m.cause)}</li>`).join('')}</ul></div>`;
+  }
+
+  UI.showHardcoreDeath = function (m) {
+    UI.closePanel();
+    const sc = $('screen');
+    sc.className = 'screen dim live'; sc.hidden = false;
+    const h = Math.floor(m.time / 3600), min = Math.floor((m.time % 3600) / 60);
+    sc.innerHTML = `<div class="box sk"><h2 style="color:var(--blood)">Mort pour toujours</h2>
+      <p style="margin:0;font-size:20px">La légende de <b>${esc(m.name)}</b> s'achève ici. Le mode Hardcore ne pardonne pas : ce héros est effacé.</p>
+      <div class="stats" style="min-width:380px"><span>Classe</span><span>${D.CLASSES[m.cls].name}</span><span>Niveau atteint</span><span>${m.lvl}</span>
+      <span>Donjons vaincus</span><span>${m.cleared} / 15</span><span>Monstres vaincus</span><span>${G.fmt(m.kills)}</span>
+      <span>Lieu</span><span>${esc(m.place)}</span><span>Cause de la mort</span><span>${esc(m.cause)}</span>
+      <span>Temps de jeu</span><span>${h ? h + ' h ' : ''}${min} min</span></div>
+      <p class="muted" style="margin:0">Son nom est gravé au Cimetière des héros, sur l'écran titre.</p>
+      <button class="main" id="hcgo">Retour à l'écran titre</button></div>`;
+    sc.onclick = (e) => { if (e.target.id === 'hcgo') UI.showTitle(); };
+  };
 
   UI.showDeath = function (lost) {
     UI.closePanel();

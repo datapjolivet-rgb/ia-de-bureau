@@ -5,7 +5,7 @@
 
   // ================= Sauvegarde =================
   // Compte claude.ai (base privée par joueur) si disponible, sinon ce navigateur.
-  const Save = (G.Save = { data: { v: 1, chars: [], last: 0, updated: 0 }, local: false, db: null, writing: false, dirty: false, timer: null });
+  const Save = (G.Save = { data: { v: 1, chars: [], last: 0, updated: 0, graveyard: [] }, local: false, db: null, writing: false, dirty: false, timer: null });
 
   function clean(data) {
     // Une partie fermée en plein donjon = donjon abandonné : le butin non sécurisé disparaît.
@@ -15,6 +15,7 @@
       c.kills = c.kills || {}; c.quests = c.quests || {}; c.talents = c.talents || {};
       c.potions = Math.min(c.potions || 0, G.D.MAX_POTIONS);
     });
+    data.graveyard = data.graveyard || [];
     return data;
   }
 
