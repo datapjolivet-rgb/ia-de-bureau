@@ -1,0 +1,173 @@
+<title>Chroniques de Valdorne</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&family=Patrick+Hand&display=swap">
+<style>
+/* Mise en page : une scène fixe 1280×720 mise à l'échelle de la fenêtre ; l'interface est dessinée comme sur du parchemin.
+   Un seul univers visuel (papier et encre), volontairement identique en thème clair et sombre. */
+:root {
+  --table: #1d1915;
+  --paper: #efe3c6;
+  --paper-2: #e2d3ae;
+  --ink: #2b2118;
+  --ink-soft: #6b5a46;
+  --blood: #9b2c20;
+  --gold: #b8862b;
+  --heal: #3f7d2a;
+  --violet: #7b3fa6;
+  --f-title: 'Caveat', 'Segoe Print', 'Comic Sans MS', cursive;
+  --f-ui: 'Patrick Hand', 'Segoe Print', 'Comic Sans MS', cursive;
+  --sketch: 255px 12px 225px 12px / 12px 225px 12px 255px;
+  color-scheme: light;
+}
+[hidden] { display: none !important; }
+html, body { height: 100%; }
+body { background: var(--table); color: var(--ink); font-family: var(--f-ui); overflow: hidden; user-select: none; -webkit-user-select: none; }
+#stage { position: absolute; left: 50%; top: 50%; width: 1280px; height: 720px; transform: translate(-50%, -50%); transform-origin: center; overflow: hidden; background: var(--paper); }
+#cv { position: absolute; inset: 0; width: 1280px; height: 720px; cursor: crosshair; }
+#ui { position: absolute; inset: 0; pointer-events: none; font-size: 17px; }
+#ui .live { pointer-events: auto; }
+.sk { border: 2px solid var(--ink); border-radius: var(--sketch); background: var(--paper); box-shadow: 3px 4px 0 rgba(43, 33, 24, 0.35); }
+button { font-family: var(--f-ui); font-size: 18px; color: var(--ink); background: var(--paper); border: 2px solid var(--ink); border-radius: var(--sketch); padding: 4px 14px; cursor: pointer; box-shadow: 2px 2px 0 rgba(43, 33, 24, 0.4); }
+button:hover:not(:disabled) { background: #f7edd4; transform: translate(-1px, -1px); box-shadow: 3px 3px 0 rgba(43, 33, 24, 0.45); }
+button:active:not(:disabled) { transform: translate(1px, 1px); box-shadow: 1px 1px 0 rgba(43, 33, 24, 0.4); }
+button:disabled { opacity: 0.45; cursor: not-allowed; }
+button:focus-visible, input:focus-visible { outline: 3px dashed var(--violet); outline-offset: 2px; }
+button.main { background: var(--ink); color: var(--paper); }
+button.main:hover:not(:disabled) { background: #3d3024; }
+button.danger { border-color: var(--blood); color: var(--blood); }
+h1, h2, h3 { font-family: var(--f-title); font-weight: 700; margin: 0; line-height: 1; text-wrap: balance; }
+.muted { color: var(--ink-soft); }
+.gold { color: var(--gold); }
+
+/* ---------- HUD ---------- */
+#hud { position: absolute; inset: 0; }
+#pframe { position: absolute; left: 14px; top: 12px; width: 330px; padding: 10px 14px 10px 12px; display: grid; grid-template-columns: 54px 1fr; gap: 4px 10px; }
+#portrait { grid-row: span 3; width: 54px; height: 54px; border: 2px solid var(--ink); border-radius: 50% 46% 52% 48%; display: grid; place-items: center; font-family: var(--f-title); font-size: 30px; font-weight: 700; color: var(--paper); }
+#pname { font-family: var(--f-title); font-size: 24px; font-weight: 700; line-height: 1; display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+#pname small { font-family: var(--f-ui); font-size: 15px; color: var(--ink-soft); font-weight: 400; }
+.bar { position: relative; height: 17px; border: 2px solid var(--ink); border-radius: 8px 3px 9px 4px; background: rgba(43, 33, 24, 0.12); overflow: hidden; }
+.bar > i { position: absolute; inset: 0 auto 0 0; display: block; background: var(--blood); }
+.bar > i.shield { background: repeating-linear-gradient(-45deg, rgba(111, 177, 217, 0.85) 0 4px, rgba(111, 177, 217, 0.4) 4px 8px); }
+.bar > span { position: absolute; inset: 0; display: grid; place-items: center; font-size: 14px; line-height: 1; color: var(--paper); text-shadow: 0 0 3px var(--ink), 0 0 2px var(--ink); font-variant-numeric: tabular-nums; }
+#resbar { height: 12px; }
+#resbar > span { font-size: 12px; }
+#buffs { position: absolute; left: 16px; top: 112px; display: flex; gap: 6px; flex-wrap: wrap; width: 330px; }
+.buff { font-size: 14px; padding: 1px 8px; border: 1.5px solid var(--ink); border-radius: var(--sketch); background: var(--paper); }
+#info { position: absolute; right: 14px; top: 12px; width: 270px; padding: 10px 14px; display: flex; flex-direction: column; gap: 6px; }
+#zone { font-family: var(--f-title); font-size: 25px; font-weight: 700; line-height: 1; }
+#wallet { display: flex; gap: 14px; font-size: 17px; }
+#tracker { border-top: 1.5px dashed var(--ink-soft); padding-top: 6px; display: flex; flex-direction: column; gap: 3px; font-size: 15px; }
+#tracker b { font-family: var(--f-title); font-size: 19px; }
+#bossbar { position: absolute; left: 50%; top: 12px; width: 470px; transform: translateX(-50%); padding: 8px 16px 10px; text-align: center; }
+#bossname { font-family: var(--f-title); font-size: 26px; font-weight: 700; color: var(--blood); line-height: 1.05; }
+#bossbar .bar { height: 18px; margin-top: 4px; }
+#hotwrap { position: absolute; left: 50%; bottom: 12px; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 6px; }
+#xpbar { width: 520px; height: 10px; }
+#xpbar > i { background: var(--violet); }
+#xpbar > span { font-size: 11px; }
+#hotbar { display: flex; gap: 8px; padding: 8px 10px; }
+.slot { position: relative; width: 60px; height: 60px; border: 2px solid var(--ink); border-radius: 12px 6px 14px 5px; display: grid; place-items: center; font-family: var(--f-title); font-size: 25px; font-weight: 700; background: var(--paper-2); overflow: hidden; }
+.slot .key { position: absolute; left: 4px; top: 1px; font-family: var(--f-ui); font-size: 13px; font-weight: 400; }
+.slot .cost { position: absolute; right: 4px; bottom: 1px; font-family: var(--f-ui); font-size: 12px; font-weight: 400; color: var(--ink-soft); }
+.slot .cd { position: absolute; inset: 0; background: conic-gradient(rgba(29, 25, 21, 0.62) var(--p, 0%), transparent 0); }
+.slot .cdt { position: absolute; inset: 0; display: grid; place-items: center; font-size: 22px; color: var(--paper); text-shadow: 0 0 3px var(--ink); }
+.slot.locked { opacity: 0.35; }
+.slot.oncd .abbr { opacity: 0.25; }
+.slot .cdt { font-family: var(--f-ui); font-weight: 400; }
+.slot.nores .abbr { color: #8a7b6a; }
+#hint { position: absolute; left: 16px; bottom: 14px; font-size: 15px; color: var(--ink); padding: 4px 12px; background: rgba(239, 227, 198, 0.85); border: 1.5px solid var(--ink); border-radius: var(--sketch); }
+#toasts { position: absolute; left: 50%; top: 104px; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 6px; width: 760px; }
+.toast { font-family: var(--f-title); font-size: 25px; font-weight: 700; padding: 3px 18px; background: rgba(239, 227, 198, 0.94); border: 2px solid var(--ink); border-radius: var(--sketch); text-align: center; transition: opacity 0.4s; }
+#hurt { position: absolute; inset: 0; background: radial-gradient(ellipse at center, transparent 55%, rgba(155, 44, 32, 0.45)); opacity: 0; transition: opacity 0.25s; }
+
+/* ---------- Panneaux ---------- */
+#panel { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 980px; max-height: 640px; display: flex; flex-direction: column; padding: 16px 22px 18px; background: var(--paper); }
+#panel header { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; border-bottom: 2px solid var(--ink); padding-bottom: 8px; margin-bottom: 12px; }
+#panel header h2 { font-size: 40px; }
+#panel header .sub { color: var(--ink-soft); font-size: 17px; }
+#pbody { overflow: auto; min-height: 0; }
+.close { font-size: 16px; padding: 2px 12px; }
+.cols { display: grid; grid-template-columns: 360px 1fr; gap: 24px; }
+.cols > * { min-width: 0; }
+.say { font-size: 18px; line-height: 1.35; background: var(--paper-2); padding: 10px 14px; border-radius: var(--sketch); border: 1.5px dashed var(--ink-soft); margin-bottom: 12px; }
+.say b { font-family: var(--f-title); font-size: 22px; }
+.grid { display: grid; grid-template-columns: repeat(6, 64px); gap: 8px; }
+.cell { position: relative; width: 64px; height: 64px; border: 2px solid var(--ink-soft); border-radius: 10px 5px 12px 4px; background: rgba(43, 33, 24, 0.06); display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; font-size: 13px; line-height: 1.05; cursor: pointer; padding: 2px; }
+.cell.empty { cursor: default; border-style: dashed; color: var(--ink-soft); }
+.cell .nm { font-family: var(--f-title); font-size: 17px; font-weight: 700; }
+.cell .up { position: absolute; right: 3px; top: 1px; font-size: 13px; font-weight: 700; }
+.cell .run { position: absolute; left: 3px; top: 0; font-size: 12px; color: var(--blood); }
+.cell.sel { outline: 3px solid var(--violet); outline-offset: 1px; }
+.cell:hover:not(.empty) { transform: translate(-1px, -1px); box-shadow: 2px 2px 0 rgba(43, 33, 24, 0.35); }
+.eq { display: grid; grid-template-columns: repeat(4, 76px); gap: 8px 10px; }
+.eq .lbl { font-size: 13px; color: var(--ink-soft); text-align: center; margin-top: 2px; }
+.stats { display: grid; grid-template-columns: 1fr auto; gap: 2px 12px; font-size: 17px; margin: 10px 0 12px; font-variant-numeric: tabular-nums; }
+.stats span:nth-child(even) { text-align: right; font-weight: 700; }
+.row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.list { display: flex; flex-direction: column; gap: 10px; }
+.card { border: 2px solid var(--ink); border-radius: var(--sketch); padding: 10px 14px; background: rgba(255, 252, 240, 0.5); display: grid; grid-template-columns: 1fr auto; gap: 4px 14px; align-items: center; }
+.card h3 { font-size: 25px; }
+.card p { margin: 0; font-size: 16px; color: var(--ink-soft); line-height: 1.3; }
+.card .act { grid-row: span 2; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; font-size: 15px; text-align: right; }
+.card.off { opacity: 0.5; }
+.pill { display: inline-block; font-size: 14px; padding: 0 8px; border: 1.5px solid currentColor; border-radius: 10px 4px 10px 4px; }
+.sectitle { font-family: var(--f-title); font-size: 27px; font-weight: 700; margin: 4px 0 8px; }
+.dgrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.dcard { border: 2px solid var(--ink); border-radius: var(--sketch); padding: 8px 12px; background: rgba(255, 252, 240, 0.5); display: flex; flex-direction: column; gap: 3px; text-align: left; font-size: 15px; }
+.dcard h3 { font-size: 23px; }
+.dcard.lock { opacity: 0.42; border-style: dashed; }
+.dcard.ok { cursor: pointer; }
+.dcard.ok:hover { background: #f7edd4; transform: translate(-1px, -1px); }
+.msg { min-height: 26px; font-family: var(--f-title); font-size: 23px; font-weight: 700; }
+
+/* ---------- Infobulle ---------- */
+#tip { position: absolute; z-index: 30; width: 270px; padding: 10px 12px; font-size: 15px; line-height: 1.3; background: #f7eed7; pointer-events: none; }
+#tip h4 { font-family: var(--f-title); font-size: 23px; margin: 0 0 2px; line-height: 1; }
+#tip .ln { display: flex; justify-content: space-between; gap: 8px; font-variant-numeric: tabular-nums; }
+#tip .up { color: var(--heal); } #tip .down { color: var(--blood); }
+#tip .ln, .tiplines .ln { display: flex; justify-content: space-between; gap: 8px; font-variant-numeric: tabular-nums; }
+.tiplines { font-size: 17px; margin-bottom: 6px; } .tiplines .up { color: var(--heal); }
+#tip hr { border: 0; border-top: 1.5px dashed var(--ink-soft); margin: 6px 0; }
+
+/* ---------- Écrans ---------- */
+.screen { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; background: var(--paper); padding-block: 20px; }
+.screen.dim { background: rgba(29, 25, 21, 0.72); }
+#title-logo { font-family: var(--f-title); font-weight: 700; font-size: 96px; line-height: 0.85; text-align: center; transform: rotate(-2deg); }
+#title-logo small { display: block; font-size: 34px; color: var(--blood); transform: rotate(1deg); }
+#title-canvas { position: absolute; inset: 0; z-index: 0; }
+.screen > :not(canvas) { position: relative; z-index: 1; }
+.chars { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; max-width: 900px; }
+.charcard { width: 200px; padding: 10px 12px; display: flex; flex-direction: column; gap: 6px; }
+.charcard h3 { font-size: 28px; }
+.classes { display: grid; grid-template-columns: repeat(5, 200px); gap: 10px; }
+.cls { padding: 6px 10px 8px; cursor: pointer; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 2px; }
+.cls canvas { width: 90px; height: 80px; }
+.cls h3 { font-size: 26px; }
+.cls .role { font-size: 14px; color: var(--ink-soft); }
+.cls.sel { outline: 4px solid var(--violet); outline-offset: 2px; background: #f7edd4; }
+#clsdesc { width: 1060px; min-height: 52px; font-size: 18px; text-align: center; }
+input[type=text] { font-family: var(--f-title); font-size: 28px; font-weight: 700; padding: 2px 14px; width: 300px; color: var(--ink); background: #f7eed7; border: 2px solid var(--ink); border-radius: var(--sketch); }
+.box { padding: 20px 28px; max-width: 640px; display: flex; flex-direction: column; gap: 10px; align-items: center; text-align: center; }
+.box h2 { font-size: 56px; }
+.lost { list-style: none; margin: 0; padding: 0; font-size: 18px; display: flex; flex-direction: column; gap: 3px; }
+#small-note { position: absolute; inset: 0; display: none; place-items: center; text-align: center; padding: 24px max(16px, env(safe-area-inset-left, 0px)); background: var(--table); color: var(--paper); font-size: 22px; z-index: 50; }
+@media (max-width: 700px), (max-height: 380px) { #small-note { display: grid; } }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div id="stage">
+  <canvas id="cv" width="1280" height="720"></canvas>
+  <div id="ui"></div>
+</div>
+<div id="small-note"><p>Les Chroniques de Valdorne se jouent sur ordinateur, au clavier et à la souris.<br>Ouvrez ce lien sur un écran plus grand.</p></div>
+
+<script src="js/util.js"></script>
+<script src="js/sketch.js"></script>
+<script src="js/data.js"></script>
+<script src="js/items.js"></script>
+<script src="js/world.js"></script>
+<script src="js/draw.js"></script>
+<script src="js/game.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/main.js"></script>
