@@ -13,6 +13,7 @@
       c.bag = (c.bag || []).filter((it) => !it.run);
       G.D.SLOTS.forEach((s) => { if (c.equip[s] && c.equip[s].run) c.equip[s] = null; });
       c.kills = c.kills || {}; c.quests = c.quests || {}; c.talents = c.talents || {};
+      c.potions = Math.min(c.potions || 0, G.D.MAX_POTIONS);
     });
     return data;
   }
