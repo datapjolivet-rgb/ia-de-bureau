@@ -452,6 +452,15 @@
       sc.hazards.push({ id: G.uid(), shape: 'circle', x: u.x, y: u.y, r: 95, t: 0, delay: 1.0, dmg: u.dmg * 1.8, faction: 'e', src: null, color: '#c4661a', bomb: true, cause: u.name + ' (explosion)' });
       text(u.x, u.y - 40, 'Explosif !', '#c4661a', 22);
     }
+    // éclats projetés à la mort
+    if (u.def.deathRing) {
+      const R = u.def.deathRing, off = Math.random() * G.TAU;
+      for (let i = 0; i < R.count; i++) {
+        const a = off + (i / R.count) * G.TAU;
+        spawnProj({ x: u.x, y: u.y - 10, ang: a, speed: R.speed, r: 6, range: 420, faction: 'e', src: null, dmg: u.dmg * R.dmgMul, color: R.color, look: 'orb', cause: u.name + ' (éclats)' });
+      }
+      ring(u.x, u.y, 70, R.color);
+    }
     // l'encre se divise
     if (u.def.split) for (let i = 0; i < u.def.split.n; i++) {
       const a = Math.random() * G.TAU, nx = u.x + Math.cos(a) * 18, ny = u.y + Math.sin(a) * 18;
@@ -793,6 +802,7 @@
     else if (atk.t === 'charge') sc.hazards.push({ id: G.uid(), shape: 'line', follow: u, x: u.x, y: u.y, ang, len: atk.dist, width: atk.width, t: 0, delay: windup, warnOnly: true, faction: u.faction, src: u });
     else if (atk.t === 'explode') sc.hazards.push({ id: G.uid(), shape: 'circle', x: u.x, y: u.y, r: atk.radius, t: 0, delay: windup, dmg, faction: u.faction, src: u, color: '#c4661a', bomb: true });
     else if (atk.t === 'heal') u.cast.ally = woundedAlly(u, atk.range);
+    else if (atk.t === 'gust') sc.hazards.push({ id: G.uid(), shape: 'cone', follow: u, x: u.x, y: u.y, r: 340, arc: 1.9, ang, t: 0, delay: windup, warnOnly: true, faction: u.faction, src: u, color: '#5a6f86' });
     else if (atk.t === 'dive') {
       // plonge sous la vase et ressurgit sous la cible
       const pt = predict(tgt, windup * 0.5);
@@ -830,7 +840,7 @@
           let x = first.x, y = first.y;
           if (i > 0) { const a = Math.random() * G.TAU, d = G.rnd(40, atk.spread || 120); x = tgt.x + Math.cos(a) * d; y = tgt.y + Math.sin(a) * d; }
           const bomb = u.look === 'bomber' || u.look === 'grizzak';
-          const h = { id: G.uid(), shape: 'circle', x, y, r: atk.radius, t: 0, delay: atk.delay + i * 0.08, dmg: atk.t === 'zone' ? dmg * 0.5 : dmg, faction: u.faction, src: u, poison: atk.poison, bomb, color: atk.color, slow: u.chill };
+          const h = { id: G.uid(), shape: 'circle', x, y, r: atk.radius, t: 0, delay: atk.delay + i * 0.08, dmg: atk.t === 'zone' ? dmg * 0.5 : dmg, faction: u.faction, src: u, poison: atk.poison, bomb, color: atk.color, slow: atk.slow || u.chill };
           if (atk.pool) h.pool = { dur: atk.pool.dur, dmg: u.dmg * atk.pool.dmgMul, color: '#6b8f2a' };
           if (atk.t === 'zone') h.pool = { dur: atk.dur, dmg: dmg, color: atk.color || '#c9a227' };
           sc.hazards.push(h);
@@ -857,6 +867,44 @@
         ring(u.x, u.y, 60, atk.color || '#2b2118');
         break;
       }
+      case 'sweep': {
+        // rayon qui tourne : une suite de lignes qui se déclenchent l'une après l'autre
+        const base = Math.atan2(tgt.y - u.y, tgt.x - u.x) - (atk.steps * atk.stepAng * DEG) / 2 * (Math.random() < 0.5 ? 1 : -1);
+        const dir = Math.random() < 0.5 ? 1 : -1;
+        for (let i = 0; i < atk.steps; i++) {
+          sc.hazards.push({ id: G.uid(), shape: 'line', x: u.x, y: u.y, ang: base + dir * i * atk.stepAng * DEG, len: atk.len, width: atk.width, t: 0, delay: atk.delay + i * atk.stepT, dmg, faction: u.faction, src: u, color: atk.color || '#9b6fe0' });
+        }
+        text(u.x, u.y - u.r * 2 - 20, 'Rayon !', '#7b3fa6', 20);
+        break;
+      }
+      case 'gust': {
+        const a = Math.atan2(tgt.y - u.y, tgt.x - u.x);
+        Game.gust(a, atk.strength, atk.dur, 0.25);
+        ring(u.x, u.y, 160, '#9fb4c8', 0.5);
+        text(u.x, u.y - u.r * 2 - 20, 'Bourrasque !', '#5a6f86', 22);
+        break;
+      }
+      case 'tornado': {
+        for (let i = 0; i < (atk.count || 1); i++) {
+          const a = Math.random() * G.TAU;
+          let x = u.x + Math.cos(a) * 90, y = u.y + Math.sin(a) * 90;
+          if (W.collides(sc.map, x, y, 20)) { x = u.x; y = u.y; }
+          sc.zones.push({ id: G.uid(), kind: 'tornado', warm: 0.6, x, y, r: atk.radius, dur: atk.dur, t: 0, interval: 0.5, acc: 0, dmg: u.dmg * atk.dmgMul, faction: u.faction, src: u, color: '#9fb4c8', chase: tgt, speed: atk.speed, cause: 'une tornade de ' + u.name });
+        }
+        text(u.x, u.y - u.r * 2 - 20, 'Tornades !', '#5a6f86', 22);
+        break;
+      }
+      case 'whirlpool': {
+        const n = atk.count || 1, first = predict(tgt, 0.4);
+        for (let i = 0; i < n; i++) {
+          let x = first.x, y = first.y;
+          if (i > 0) { const a = Math.random() * G.TAU, d = G.rnd(80, atk.spread || 160); x = tgt.x + Math.cos(a) * d; y = tgt.y + Math.sin(a) * d; }
+          if (W.solidAt(sc.map, x, y)) { x = tgt.x; y = tgt.y; }
+          sc.zones.push({ id: G.uid(), kind: 'whirl', warm: 0.9, x, y, r: atk.radius, dur: atk.dur, t: 0, interval: 0.5, acc: 0, dmg: u.dmg * atk.dmgMul, faction: u.faction, src: u, color: '#2f6f86', pull: atk.pull, cause: 'un tourbillon de ' + u.name });
+        }
+        text(u.x, u.y - u.r * 2 - 20, 'Tourbillon !', '#2f6f86', 22);
+        break;
+      }
       case 'spiral':
         sc.emitters.push({ src: u, t: 0, dur: atk.dur, rate: atk.rate, acc: 0, arms: atk.arms, ang0: Math.random() * G.TAU, spin: atk.spin * (Math.random() < 0.5 ? 1 : -1), speed: atk.speed, dmg, color: atk.color || '#3b3346' });
         text(u.x, u.y - u.r * 2 - 20, 'Lecture interdite…', '#7b3fa6', 20);
@@ -866,7 +914,7 @@
         break;
       case 'summon': {
         if (u.minion) break;
-        for (let i = 0; i < atk.count; i++) spawnAdd(u, atk.mon, i, atk.count);
+        for (let i = 0; i < atk.count; i++) spawnAdd(u, atk.mon, i, atk.count, atk.spread);
         text(u.x, u.y - u.r * 2 - 20, 'Invocation !', '#9b2c20', 20);
         break;
       }
@@ -904,10 +952,15 @@
     }
   }
 
-  function spawnAdd(u, mon, i, n) {
+  function spawnAdd(u, mon, i, n, spread) {
     const sc = Game.scene;
     const a = (i / Math.max(1, n)) * G.TAU + Math.random();
     let x = u.x + Math.cos(a) * 80, y = u.y + Math.sin(a) * 80;
+    if (spread) for (let k = 0; k < 20; k++) {
+      const b = Math.random() * G.TAU, d = G.rnd(spread * 0.4, spread);
+      const nx = u.x + Math.cos(b) * d, ny = u.y + Math.sin(b) * d;
+      if (!W.collides(sc.map, nx, ny, 18) && W.los(sc.map, u.x, u.y, nx, ny)) { x = nx; y = ny; break; }
+    }
     if (W.collides(sc.map, x, y, 14)) { x = u.x; y = u.y; }
     const lvl = Math.max(1, (sc.def ? sc.def.lvl : 1) + 1);
     const m = makeMonster(mon, x, y, lvl, false);
@@ -1261,6 +1314,33 @@
     }
   }
 
+  // ================= Vent =================
+  // Une rafale pousse le joueur (et les monstres qui ne volent pas) dans une direction.
+  Game.gust = function (ang, strength, dur, warn) {
+    const sc = Game.scene;
+    sc.wind = { ang, str: strength, dur, t: -(warn || 0) };
+  };
+  function updateWind(sc, dt) {
+    const p = Game.player;
+    if (sc.kind === 'dungeon' && sc.def && sc.def.wind && !sc.wind) {
+      sc.windTimer = (sc.windTimer == null ? 8 : sc.windTimer) - dt;
+      if (sc.windTimer <= 0) {
+        sc.windTimer = G.rnd(9, 14);
+        Game.gust(Math.floor(Math.random() * 8) * (Math.PI / 4), 115, 1.8, 1.0);
+        G.UI.toast('Le vent se lève…', '#5a6f86', 1.6);
+      }
+    }
+    const w = sc.wind;
+    if (!w) return;
+    w.t += dt;
+    if (w.t >= w.dur) { sc.wind = null; return; }
+    if (w.t < 0) return;
+    const k = w.str * dt * Math.min(1, (w.dur - w.t) * 2 + 0.2);
+    const dx = Math.cos(w.ang) * k, dy = Math.sin(w.ang) * k;
+    if (p && !p.dead && !p.dash) W.move(sc.map, p, dx, dy);
+    sc.units.forEach((u) => { if (!u.isPlayer && alive(u) && !u.boss && !u.def.flying && !u.dummyUnit && u.speed > 0) W.move(sc.map, u, dx * 0.7, dy * 0.7); });
+  }
+
   // ================= Boucle de mise à jour =================
   Game.update = function (dt) {
     const sc = Game.scene;
@@ -1291,6 +1371,7 @@
     sc.timers = sc.timers.filter((t) => t.t > 0);
     due.forEach((t) => t.fn());
     updateEmitters(sc, dt);
+    updateWind(sc, dt);
     updateProjs(sc, dt);
     updateHazards(sc, dt);
     updateZones(sc, dt);
@@ -1360,7 +1441,7 @@
           const rd = rollDmg(pr.src, pr.mult, { bonus: pr.bonus, forceCrit: pr.forceCrit });
           hitUnit(pr.src, u, rd.d, { crit: rd.crit, stun: pr.stun, slow: pr.slow, lifesteal: pr.lifesteal });
         } else {
-          dealDamage(pr.src, u, pr.dmg);
+          dealDamage(pr.src, u, pr.dmg, { cause: pr.cause });
           if (u.faction === 'p' && !isInvuln(u) && !u.dead) {
             if (pr.slow) { u.slowT = 2; u.slowAmt = Math.max(u.slowAmt || 0, pr.slow); }
             if (pr.poison) u.dots.push({ dps: (pr.dmg * pr.poison) / 3, t: 3, acc: 0, src: pr.src });
@@ -1421,6 +1502,18 @@
     for (const z of sc.zones) {
       z.t += dt;
       if (z.follow) { z.x = z.follow.x; z.y = z.follow.y; }
+      if (z.warm && z.t < z.warm) continue;
+      if (z.chase && !z.chase.dead) {
+        const a = Math.atan2(z.chase.y - z.y, z.chase.x - z.x), nx = z.x + Math.cos(a) * z.speed * dt, ny = z.y + Math.sin(a) * z.speed * dt;
+        if (!W.solidAt(sc.map, nx, ny)) { z.x = nx; z.y = ny; }
+      }
+      if (z.pull) sc.units.forEach((u) => {
+        if (u.faction === z.faction || !alive(u) || u.boss || (u.isPlayer && (u.dash || isInvuln(u)))) return;
+        const d = Math.hypot(u.x - z.x, u.y - z.y);
+        if (d > z.r * 1.7 || d < 6) return;
+        const k = z.pull * dt * (1 - d / (z.r * 1.9));
+        W.move(sc.map, u, ((z.x - u.x) / d) * k, ((z.y - u.y) / d) * k);
+      });
       z.acc += dt;
       while (z.acc >= z.interval) {
         z.acc -= z.interval;
@@ -1428,7 +1521,7 @@
           if (u.faction === z.faction || !alive(u) || !inEllipse(z.x, z.y, z.r, u)) return;
           if (z.mult) { const rd = rollDmg(z.src, z.mult); hitUnit(z.src, u, rd.d, { crit: rd.crit, slow: z.slow, weaken: z.weaken, isDot: true }); }
           else if (z.dmg) {
-            dealDamage(z.src && !z.src.dead ? z.src : null, u, z.dmg, { isDot: true });
+            dealDamage(z.src && !z.src.dead ? z.src : null, u, z.dmg, { isDot: true, cause: z.cause });
             if (u.faction === 'p' && z.poison && !u.dead) { u.slowT = 0.6; u.slowAmt = Math.max(u.slowAmt || 0, 0.2); }
           }
         });

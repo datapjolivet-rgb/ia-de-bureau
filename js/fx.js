@@ -12,8 +12,9 @@
     sc.fxT = (sc.fxT || 0) + dt;
     const amb = sc.ambient;
     const kind = sc.kind === 'town' || sc.kind === 'tuto' ? 'leaf' : th.ambient;
-    const max = kind === 'leaf' ? 14 : 40;
-    if (kind && amb.filter((a) => a.kind === kind).length < max && Math.random() < dt * (kind === 'leaf' ? 3 : 14)) {
+    const max = kind === 'leaf' ? 14 : kind === 'snow' ? 90 : 40;
+    const rate = kind === 'leaf' ? 3 : kind === 'snow' ? 45 : 14;
+    for (let n = 0; n < (kind === 'snow' ? 2 : 1); n++) if (kind && amb.filter((a) => a.kind === kind).length < max && Math.random() < dt * rate) {
       const x = cam.x + Math.random() * Game.W, y = cam.y + Math.random() * Game.H;
       const a = { kind, x, y, t: 0, life: 4 + Math.random() * 4, seed: Math.random() * 100 };
       if (kind === 'dust') { a.vx = G.rnd(-6, 6); a.vy = G.rnd(-4, 4); }
@@ -21,6 +22,9 @@
       else if (kind === 'ember') { a.vx = G.rnd(-8, 8); a.vy = G.rnd(-40, -18); a.life = 2 + Math.random() * 2; }
       else if (kind === 'page') { a.y = cam.y - 10; a.vx = G.rnd(-12, 12); a.vy = G.rnd(18, 30); a.rot = Math.random() * 6; a.life = 8; }
       else if (kind === 'leaf') { a.y = cam.y - 10; a.vx = G.rnd(10, 30); a.vy = G.rnd(20, 34); a.rot = Math.random() * 6; a.life = 9; a.col = G.pick(['#7a9a48', '#c4661a', '#b8862b']); }
+      else if (kind === 'sparkle') { a.vx = 0; a.vy = -4; a.life = 1.2 + Math.random() * 1.6; a.col = Math.random() < 0.5 ? '#bff0ff' : '#e4c8ff'; }
+      else if (kind === 'snow') { a.y = cam.y - 10; a.x = cam.x - 100 + Math.random() * (Game.W + 200); a.vx = G.rnd(-12, 12); a.vy = G.rnd(40, 70); a.life = 14; a.r = 1 + Math.random() * 1.8; }
+      else if (kind === 'bubble') { a.vx = G.rnd(-4, 4); a.vy = G.rnd(-32, -18); a.life = 3 + Math.random() * 2; a.r = 1.5 + Math.random() * 2.5; }
       amb.push(a);
     }
     // fumée des cheminées et fontaine
@@ -41,8 +45,12 @@
       sc.birds.forEach((b) => { b.x += b.vx * dt; b.ph += dt * 10; });
       sc.birds = sc.birds.filter((b) => b.x > cam.x - 200 && b.x < cam.x + Game.W + 200);
     }
+    const w = sc.wind && sc.wind.t >= 0 ? sc.wind : null;
+    if (w && Math.random() < dt * 30) amb.push({ kind: 'gust', x: cam.x + Math.random() * Game.W, y: cam.y + Math.random() * Game.H, vx: Math.cos(w.ang) * 600, vy: Math.sin(w.ang) * 600, t: 0, life: 0.35, seed: 0 });
     for (const a of amb) {
       a.t += dt;
+      if (w && (a.kind === 'snow' || a.kind === 'leaf')) { a.vx += Math.cos(w.ang) * 220 * dt; a.vy += Math.sin(w.ang) * 220 * dt; }
+      if (a.kind === 'bubble') a.vx = Math.sin(a.t * 4 + a.seed) * 8;
       if (a.kind === 'firefly') { a.vx += G.rnd(-40, 40) * dt; a.vy += G.rnd(-40, 40) * dt; a.vx *= 0.98; a.vy *= 0.98; }
       if (a.kind === 'page' || a.kind === 'leaf') { a.rot += dt * 2; a.vx += Math.sin(a.t * 2 + a.seed) * 12 * dt; }
       a.x += a.vx * dt; a.y += a.vy * dt;
@@ -73,7 +81,15 @@
     sc.chests.forEach((c) => vis(c.x, c.y, 40) && R.chest(g, c));
     sc.drops.forEach((d) => vis(d.x, d.y, 30) && R.drop(g, d, t));
     // flammes (torches, braseros, feu de camp)
-    m.lights.forEach((L) => { if (L.flick && L.kind !== 'lantern' && vis(L.x, L.y, 30)) flame(g, L.x, L.y, L.kind === 'campfire' ? 1.8 : L.kind === 'brazier' ? 1.3 : L.kind === 'torch' ? 1 : 0.55, t, L.x); });
+    m.lights.forEach((L) => { if (L.flick && L.kind !== 'lantern' && vis(L.x, L.y, 30)) flame(g, L.x, L.y, L.kind === 'campfire' ? 1.8 : L.kind === 'brazier' ? 1.3 : L.kind === 'torch' ? 1 : 0.55, t, L.x, L.blue); });
+    // annonce d'une rafale : flèche autour du joueur
+    if (sc.wind && sc.wind.t < 0 && Game.player) {
+      const p = Game.player, a = sc.wind.ang, c = Math.cos(a), si = Math.sin(a), bx = p.x + c * 70, by = p.y - 10 + si * 56;
+      g.globalAlpha = 0.6 + 0.4 * Math.sin(t * 16);
+      S.begin(17); S.poly(g, [[bx + c * 22, by + si * 22], [bx - si * 12 - c * 6, by + c * 12 - si * 6], [bx - si * 4 - c * 6, by + c * 4 - si * 6], [bx - si * 4 - c * 26, by + c * 4 - si * 26], [bx + si * 4 - c * 26, by - c * 4 - si * 26], [bx + si * 4 - c * 6, by - c * 4 - si * 6], [bx + si * 12 - c * 6, by - c * 12 - si * 6]], { fill: '#cfe2f2', fillA: 0.95, w: 1.6, over: 1 });
+      S.text(g, 'Rafale !', p.x, p.y - 64, 20, '#3a4a5a', 'center', 'rgba(236,240,244,0.9)');
+      g.globalAlpha = 1;
+    }
     // objectif du tutoriel : cercle pulsant
     const obj = Game.objective();
     if (obj && sc.kind === 'tuto' && vis(obj.x, obj.y, 60)) {
@@ -86,14 +102,14 @@
     sc.units.forEach((u) => !u.dead && !u.isPlayer && !u.dormant && !u.hidden && vis(u.x, u.y, 40) && R.hpBar(g, u));
     sc.projs.forEach((p) => R.proj(g, p));
     drawParts(g, sc);
-    sc.ambient.forEach((a) => (a.kind === 'dust' || a.kind === 'page' || a.kind === 'leaf' || a.kind === 'smoke') && drawAmbient(g, a));
+    sc.ambient.forEach((a) => (a.kind === 'dust' || a.kind === 'page' || a.kind === 'leaf' || a.kind === 'smoke' || a.kind === 'bubble' || a.kind === 'snow' || a.kind === 'gust') && drawAmbient(g, a));
     g.restore();
 
     // ----- éclairage, puis brouillard d'exploration (le papier non dessiné reste clair) -----
     if (th.dark > 0) light(g, sc, sx, sy, th.dark, t);
     g.save();
     g.translate(-sx, -sy);
-    sc.ambient.forEach((a) => (a.kind === 'firefly' || a.kind === 'ember') && drawAmbient(g, a));
+    sc.ambient.forEach((a) => (a.kind === 'firefly' || a.kind === 'ember' || a.kind === 'sparkle') && drawAmbient(g, a));
     if (m.fogCanvas) {
       g.imageSmoothingEnabled = true;
       const fx = Math.max(0, Math.floor(sx / T) - 1), fy = Math.max(0, Math.floor(sy / T) - 1);
@@ -145,7 +161,8 @@
     g.fillStyle = gr; g.fillRect(0, 0, Game.W, Game.H);
     m.lights.forEach((L) => {
       const f = L.flick ? 0.9 + 0.07 * Math.sin(t * 11 + L.x) + 0.05 * Math.sin(t * 23 + L.y) : 1;
-      add(L.x, L.y, L.r * f, 1, L.color || '#f2c46b');
+      const soft = L.kind === 'crystal' || L.kind === 'vein' || L.kind === 'crystalsmall' || L.kind === 'runes' || L.kind === 'glowshroom';
+      add(L.x, L.y, L.r * f * (soft ? 0.8 : 1), soft ? 0.38 : 1, L.color || '#f2c46b');
     });
     sc.units.forEach((u) => { if (!u.dead && !u.hidden && u.def && u.def.glow) add(u.x, u.y - 16, u.boss ? 180 : 110, 0.9, u.def.glow); });
     sc.units.forEach((u) => { if (u.minion && !u.dead) add(u.x, u.y - 10, 80, 0.6, '#5bd04a'); });
@@ -186,11 +203,11 @@
     return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a.toFixed(3)})`;
   }
 
-  function flame(g, x, y, s, t, seed) {
+  function flame(g, x, y, s, t, seed, blue) {
     const f = 1 + 0.15 * Math.sin(t * 17 + seed) + 0.1 * Math.sin(t * 29 + seed * 2);
-    g.fillStyle = '#e8762a';
+    g.fillStyle = blue ? '#3fa0c0' : '#e8762a';
     g.beginPath(); g.ellipse(x, y - 4 * s * f, 5 * s, 9 * s * f, Math.sin(t * 7 + seed) * 0.15, 0, G.TAU); g.fill();
-    g.fillStyle = '#ffd36a';
+    g.fillStyle = blue ? '#c8f4ff' : '#ffd36a';
     g.beginPath(); g.ellipse(x, y - 2 * s * f, 2.6 * s, 5 * s * f, 0, 0, G.TAU); g.fill();
     g.strokeStyle = 'rgba(43,33,24,0.6)'; g.lineWidth = 0.8;
     g.beginPath(); g.ellipse(x, y - 4 * s * f, 5 * s, 9 * s * f, Math.sin(t * 7 + seed) * 0.15, 0, G.TAU); g.stroke();
@@ -226,6 +243,21 @@
         break;
       }
       case 'ember': g.globalAlpha = life; g.fillStyle = a.t % 0.3 < 0.15 ? '#ffb04a' : '#f0782a'; g.fillRect(a.x, a.y, 2.2, 2.2); break;
+      case 'sparkle': {
+        const k = Math.sin((a.t / a.life) * Math.PI), l = 2 + k * 4;
+        g.globalAlpha = k; g.strokeStyle = a.col; g.lineWidth = 1.2;
+        g.beginPath(); g.moveTo(a.x - l, a.y); g.lineTo(a.x + l, a.y); g.moveTo(a.x, a.y - l); g.lineTo(a.x, a.y + l); g.stroke();
+        break;
+      }
+      case 'snow': g.globalAlpha = 0.9 * life; g.fillStyle = '#ffffff'; g.beginPath(); g.arc(a.x, a.y, a.r, 0, G.TAU); g.fill(); g.strokeStyle = 'rgba(120,140,160,0.5)'; g.lineWidth = 0.5; g.stroke(); break;
+      case 'bubble': g.globalAlpha = 0.7 * life; g.strokeStyle = '#d8f4f8'; g.lineWidth = 1; g.beginPath(); g.arc(a.x, a.y, a.r, 0, G.TAU); g.stroke(); break;
+      case 'gust': {
+        const k = a.t / a.life;
+        g.globalAlpha = 0.55 * (1 - k); g.strokeStyle = '#8fa6bc'; g.lineWidth = 1.4;
+        const dx = a.vx * 0.06, dy = a.vy * 0.06;
+        g.beginPath(); g.moveTo(a.x, a.y); g.quadraticCurveTo(a.x + dx * 0.5 - dy * 0.1, a.y + dy * 0.5 + dx * 0.1, a.x + dx, a.y + dy); g.stroke();
+        break;
+      }
       case 'page': case 'leaf':
         g.save(); g.translate(a.x, a.y); g.rotate(a.rot); g.globalAlpha = 0.85 * life;
         if (a.kind === 'page') { g.fillStyle = '#f5f0e1'; g.fillRect(-5, -4, 10, 8); g.strokeStyle = 'rgba(43,33,24,0.6)'; g.lineWidth = 0.6; g.strokeRect(-5, -4, 10, 8); g.beginPath(); g.moveTo(-3, -1); g.lineTo(3, -1); g.moveTo(-3, 1.5); g.lineTo(2, 1.5); g.stroke(); }

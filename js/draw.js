@@ -480,6 +480,28 @@
 
   R.zone = function (g, z) {
     S.begin(z.id);
+    if (z.kind === 'tornado' || z.kind === 'whirl') {
+      const t = G.Game.time, warm = z.warm && z.t < z.warm ? 0.35 : 1;
+      const a = Math.min(1, z.t * 3, (z.dur - z.t) * 3) * warm;
+      g.save();
+      g.globalAlpha = 0.16 * a; g.fillStyle = z.color;
+      g.beginPath(); g.ellipse(z.x, z.y, z.r, z.r * 0.75, 0, 0, G.TAU); g.fill();
+      g.strokeStyle = z.color; g.lineWidth = 2;
+      const dir = z.kind === 'whirl' ? 1 : -1;
+      for (let k = 0; k < 3; k++) {
+        g.globalAlpha = 0.75 * a;
+        g.beginPath();
+        for (let i = 0; i <= 26; i++) {
+          const f = i / 26, rad = z.r * (1 - f * 0.85), ang = dir * (t * (z.kind === 'whirl' ? 2.4 : 5) + f * 5.5) + (k * G.TAU) / 3;
+          const px = z.x + Math.cos(ang) * rad, py = z.y + Math.sin(ang) * rad * 0.75 - (z.kind === 'tornado' ? f * 46 : 0);
+          i ? g.lineTo(px, py) : g.moveTo(px, py);
+        }
+        g.stroke();
+      }
+      g.globalAlpha = 0.8 * a; S.circle(g, z.x, z.y, z.r, { ry: z.r * 0.75, stroke: z.color, w: 1.4, single: true });
+      g.restore(); g.globalAlpha = 1;
+      return;
+    }
     const a = Math.min(1, z.t * 3, (z.dur - z.t) * 3);
     g.save();
     g.globalAlpha = 0.18 * a; g.fillStyle = z.color;

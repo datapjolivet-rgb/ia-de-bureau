@@ -4,8 +4,9 @@
   const D = G.D, S = G.S;
   const T = D.TILE;
   const W = (G.W = {});
-  const STATUE = { crypt: 'angel', bastion: 'knight', library: 'bust', mine: 'rockpile', forest: 'tree', swamp: 'deadtree' };
-  const LIGHT_DECOS = { candle: [95, '#f2b45a'], lantern: [130, '#f2c46b'], brazier: [165, '#f08a2a'], candelabra: [130, '#f2c46b'], glowshroom: [75, '#9be0b0'], campfire: [190, '#f08a2a'] };
+  const STATUE = { crypt: 'angel', bastion: 'knight', library: 'bust', mine: 'rockpile', forest: 'tree', swamp: 'deadtree', crystal: 'crystal', peak: 'icerock', temple: 'column' };
+  const LIGHT_DECOS = { candle: [95, '#f2b45a'], lantern: [130, '#f2c46b'], brazier: [165, '#f08a2a'], candelabra: [130, '#f2c46b'], glowshroom: [75, '#9be0b0'], campfire: [190, '#f08a2a'],
+    crystalsmall: [80, '#9fd8f0'], runes: [85, '#7fd0e0'] };
 
   function newMap(w, h, theme) {
     return {
@@ -46,7 +47,9 @@
   // ---------- Obstacles de salle (toujours au même endroit grâce à la graine) ----------
   function placeObs(m, r, x, y, w, h, kind, rng) {
     for (let j = y; j < y + h; j++) for (let i = x; i < x + w; i++) W.set(m, i, j, 3);
-    m.obstacles.push({ x, y, w, h, kind, room: r.idx, seed: Math.floor(rng() * 1e6) });
+    const seed = Math.floor(rng() * 1e6);
+    m.obstacles.push({ x, y, w, h, kind, room: r.idx, seed });
+    if (kind === 'crystal') m.lights.push({ x: (x + 0.5) * T, y: (y + 0.2) * T, r: 150, color: seed % 2 ? '#8fd8f0' : '#c9a0f0', flick: false, kind: 'crystal' });
   }
   function addFeature(m, r, f, rng) {
     const th = D.THEMES[m.theme];
@@ -80,9 +83,9 @@
           if (W.get(m, x, y) === 1) W.set(m, x, y, 4);
         }
       }
-    } else if (f === 'trees' || f === 'statues') {
-      const n = f === 'trees' ? 3 + Math.floor(rng() * 3) : 2 + Math.floor(rng() * 3);
-      const kind = f === 'trees' ? (th.obstacle === 'deadtree' ? 'deadtree' : 'tree') : STATUE[m.theme] || 'angel';
+    } else if (f === 'trees' || f === 'statues' || f === 'crystals') {
+      const n = f === 'statues' ? 2 + Math.floor(rng() * 3) : 3 + Math.floor(rng() * 3);
+      const kind = f === 'trees' ? (th.obstacle === 'deadtree' || th.obstacle === 'pine' ? th.obstacle : 'tree') : f === 'crystals' ? 'crystal' : STATUE[m.theme] || 'angel';
       for (let k = 0, tries = 0; k < n && tries < 80; tries++) {
         const x = r.x + 2 + Math.floor(rng() * (r.w - 4)), y = r.y + 2 + Math.floor(rng() * (r.h - 4));
         if (ok(x, y, 1, 1, 2)) { placeObs(m, r, x, y, 1, 1, kind, rng); k++; }
@@ -173,12 +176,16 @@
         else if (m.theme === 'crypt') kind = k % 3 === 2 ? 'cobweb' : 'torch';
         else if (m.theme === 'mine') kind = k % 2 ? 'beamwall' : 'torch';
         else if (m.theme === 'swamp') kind = rng() < 0.5 ? 'roots' : 'moss';
+        else if (m.theme === 'crystal') kind = k % 2 ? 'vein' : null;
+        else if (m.theme === 'peak') kind = 'icicles';
+        else if (m.theme === 'temple') kind = k % 2 ? 'seaweedwall' : 'torch';
         else kind = null;
         k++;
         if (!kind) continue;
         const wd = { x: (x + 0.5) * T, y: y * T, kind, seed: Math.floor(rng() * 1e6) };
         m.wallDecos.push(wd);
-        if (kind === 'torch' && th.torch) m.lights.push({ x: wd.x, y: wd.y + 14, r: 165, color: '#f2a03a', flick: true, kind: 'torch', flame: true });
+        if (kind === 'torch' && th.torch) m.lights.push({ x: wd.x, y: wd.y + 14, r: 165, color: th.blueFire ? '#7fd0e0' : '#f2a03a', flick: true, kind: 'torch', flame: true, blue: !!th.blueFire });
+        if (kind === 'vein') m.lights.push({ x: wd.x, y: wd.y + 16, r: 110, color: '#b48ae0', flick: false, kind: 'vein' });
       }
     });
   }
@@ -431,6 +438,7 @@
       if (W.isFloor(m, x, y - 1)) S.line(g, px - 1, py, px + T + 1, py, 2, S.ink, 1.2, 1);
       if (W.isFloor(m, x, y + 1)) S.line(g, px - 1, py + T, px + T + 1, py + T, 2.2, S.ink, 1.2, 1);
     }
+    if (m.theme === 'peak') drawCliffs(g, m, rng);
     if (m.theme === 'forest' || m.tutoMap) drawTreeBorder(g, m, rng, m.tutoMap ? 58 : 999);
     if (m.theme === 'swamp') drawReedBorder(g, m, rng);
     if (m.town) drawTownWalls(g, m);
@@ -465,6 +473,22 @@
         case 'swamp':
           if (r < 0.12) { g.globalAlpha = 0.25; g.fillStyle = '#6b5a3a'; S.blobPath(g, px + rng() * T, py + rng() * T, 8 + rng() * 8, 5 + rng() * 4, 2); g.fill(); g.globalAlpha = 1; }
           else if (r < 0.3) { const ox = px + rng() * T, oy = py + rng() * T; for (let i = 0; i < 3; i++) S.line(g, ox + i * 3, oy, ox + i * 3 + (rng() - 0.5) * 4, oy - 6 - rng() * 4, 0.8, 'rgba(60,80,30,0.55)', 0.6, 1); }
+          break;
+        case 'crystal':
+          if (r < 0.14) { g.fillStyle = 'rgba(40,30,70,0.25)'; for (let i = 0; i < 4; i++) g.fillRect(px + rng() * T, py + rng() * T, 2, 2); }
+          else if (r < 0.22) { const ox = px + rng() * T, oy = py + rng() * T; g.strokeStyle = 'rgba(160,220,250,0.8)'; g.lineWidth = 1; g.beginPath(); g.moveTo(ox - 3, oy); g.lineTo(ox + 3, oy); g.moveTo(ox, oy - 3); g.lineTo(ox, oy + 3); g.stroke(); }
+          else if (r < 0.28) { const ox = px + rng() * T, oy = py + rng() * T; S.line(g, ox, oy, ox + (rng() - 0.5) * 20, oy + (rng() - 0.5) * 20, 0.8, 'rgba(50,40,80,0.45)', 1, 1); }
+          break;
+        case 'peak':
+          if (r < 0.2) { g.globalAlpha = 0.35; g.fillStyle = '#c9d6e2'; S.blobPath(g, px + rng() * T, py + rng() * T, 9 + rng() * 8, 4 + rng() * 3, 2); g.fill(); g.globalAlpha = 1; }
+          else if (r < 0.3) { const ox = px + rng() * T, oy = py + rng() * T; S.line(g, ox, oy, ox + 10 + rng() * 10, oy, 0.7, 'rgba(120,140,160,0.45)', 0.4, 1); }
+          else if (r < 0.33) S.poly(g, [[px + 8, py + 22], [px + 12, py + 14], [px + 20, py + 15], [px + 23, py + 22]], { fill: '#9a9ea6', w: 1, single: true });
+          break;
+        case 'temple':
+          if (x % 2 === 0) S.line(g, px, py, px, py + T, 0.9, 'rgba(30,60,60,0.35)', 0.6, 1);
+          if (y % 2 === 0) S.line(g, px, py, px + T, py, 0.9, 'rgba(30,60,60,0.35)', 0.6, 1);
+          if (r < 0.12) { g.globalAlpha = 0.3; g.fillStyle = '#5d8a5a'; S.blobPath(g, px + rng() * T, py + rng() * T, 7 + rng() * 6, 4 + rng() * 3, 2); g.fill(); g.globalAlpha = 1; }
+          else if (r < 0.18) { g.fillStyle = 'rgba(220,210,170,0.6)'; for (let i = 0; i < 5; i++) g.fillRect(px + rng() * T, py + rng() * T, 2, 1.5); }
           break;
         default: // forêt
           if (r < 0.3) { const ox = px + rng() * T, oy = py + rng() * T; for (let i = 0; i < 3; i++) S.line(g, ox + i * 3, oy, ox + i * 3 + (rng() - 0.5) * 4, oy - 5 - rng() * 4, 0.8, 'rgba(60,80,30,0.55)', 0.6, 1); }
@@ -521,12 +545,35 @@
       g.globalAlpha = 0.92; g.fillStyle = th.deep; g.fill(); g.clip(); g.globalAlpha = 1;
       g.strokeStyle = 'rgba(150,200,185,0.35)'; g.lineWidth = 1.2;
       for (let y = 6; y < m.h * T; y += 14) for (let x = (y * 7) % 40; x < m.w * T; x += 40 + ((y * 13) % 20)) { g.beginPath(); g.arc(x, y, 7, Math.PI * 1.15, Math.PI * 1.85); g.stroke(); }
+    } else if (m.theme === 'temple') {
+      g.globalAlpha = 0.94; g.fillStyle = th.deep; g.fill(); g.clip(); g.globalAlpha = 1;
+      g.strokeStyle = 'rgba(127,208,224,0.25)'; g.lineWidth = 1.2;
+      for (let y = 8; y < m.h * T; y += 16) for (let x = (y * 11) % 50; x < m.w * T; x += 46 + ((y * 7) % 24)) { g.beginPath(); g.moveTo(x, y); g.quadraticCurveTo(x + 8, y - 6, x + 16, y); g.quadraticCurveTo(x + 24, y + 6, x + 32, y); g.stroke(); }
+    } else if (m.theme === 'peak') {
+      g.globalAlpha = 1; g.fillStyle = '#cfe2f2'; g.fill(); g.clip();
+      const rr = G.seeded(m.w * 7);
+      for (let i = 0; i < (m.w * m.h) / 30; i++) {
+        const cx = rr() * m.w * T, cy = rr() * m.h * T, w = 30 + rr() * 50;
+        g.globalAlpha = 0.85; g.fillStyle = '#f7fbff';
+        g.beginPath(); g.ellipse(cx, cy, w, w * 0.35, 0, 0, G.TAU); g.ellipse(cx + w * 0.5, cy - 6, w * 0.6, w * 0.3, 0, 0, G.TAU); g.fill();
+        g.globalAlpha = 0.5; g.strokeStyle = '#9fb4c8'; g.lineWidth = 1; g.beginPath(); g.ellipse(cx, cy, w, w * 0.35, 0, 0.2, 2.9); g.stroke();
+      }
+      g.globalAlpha = 1;
+      for (let i = 0; i < 6; i++) { const bx = rr() * m.w * T, by = rr() * m.h * T; S.line(g, bx - 6, by - 3, bx, by, 1.2, '#5a6f86', 0.5, 1); S.line(g, bx, by, bx + 6, by - 3, 1.2, '#5a6f86', 0.5, 1); }
     } else if (m.town) {
       g.globalAlpha = 0.95; g.fillStyle = '#9a9488'; g.fill(); g.clip(); g.globalAlpha = 1;
       for (let y = 0; y < m.h * T; y += 12) for (let x = ((y / 12) % 2) * 12; x < m.w * T; x += 24) { g.strokeStyle = 'rgba(43,33,24,0.25)'; g.lineWidth = 0.8; g.strokeRect(x, y, 24, 12); }
     } else {
       g.globalAlpha = 0.85; g.fillStyle = th.wallDark; g.fill(); g.clip(); g.globalAlpha = 1;
       S.hatchArea(g, 0, 0, m.w * T, m.h * T, { sp: 7, ang: -0.9, c: '#120e0a', a: 0.45, w: 1, cross: true });
+      if (m.theme === 'crystal') {
+        const rr = G.seeded(m.w * 13);
+        for (let i = 0; i < (m.w * m.h) / 14; i++) {
+          const x = rr() * m.w * T, y = rr() * m.h * T, a = rr() * 3, l = 5 + rr() * 9;
+          g.fillStyle = rr() < 0.5 ? 'rgba(143,216,240,0.55)' : 'rgba(180,138,224,0.55)';
+          g.beginPath(); g.moveTo(x, y); g.lineTo(x + Math.cos(a) * l, y + Math.sin(a) * l); g.lineTo(x + Math.cos(a + 0.4) * l * 0.4, y + Math.sin(a + 0.4) * l * 0.4); g.closePath(); g.fill();
+        }
+      }
     }
     g.restore();
   }
@@ -534,6 +581,25 @@
   function drawWallFace(g, m, th, x, y, rng) {
     const px = x * T, py = y * T;
     if (m.theme === 'forest' || m.tutoMap) return;
+    if (m.theme === 'peak') {
+      // rebord rocheux couvert de neige
+      g.fillStyle = '#8a8e96'; g.fillRect(px, py + 12, T, T - 12);
+      S.hatchArea(g, px, py + 12, T, T - 12, { sp: 5, ang: 1.2, c: '#3a3e46', a: 0.3, w: 0.7 });
+      g.fillStyle = '#f7fbff'; S.blobPath(g, px + T / 2, py + 13, T * 0.62, 6, 2, 10); g.fill();
+      return;
+    }
+    if (m.theme === 'crystal') {
+      g.globalAlpha = 0.95; g.fillStyle = th.wall; g.fillRect(px, py + 4, T, T - 4); g.globalAlpha = 1;
+      S.hatchArea(g, px, py + 4, T, T - 4, { sp: 5, ang: -1, c: '#120e22', a: 0.3, w: 0.7 });
+      if (rng() < 0.35) { g.fillStyle = rng() < 0.5 ? '#8fd8f0' : '#c9a0f0'; g.beginPath(); g.moveTo(px + 10, py + T); g.lineTo(px + 14, py + 10); g.lineTo(px + 19, py + T); g.closePath(); g.fill(); g.strokeStyle = S.ink; g.lineWidth = 0.8; g.stroke(); }
+      return;
+    }
+    if (m.theme === 'temple') {
+      g.globalAlpha = 0.95; g.fillStyle = th.wall; g.fillRect(px, py + 4, T, T - 4); g.globalAlpha = 1;
+      for (let row = 0; row < 2; row++) { const yy = py + 5 + row * 13; S.line(g, px, yy + 13, px + T, yy + 13, 0.9, 'rgba(10,30,30,0.5)', 0.7, 1); for (let xx = row % 2 ? T / 2 : 0; xx < T; xx += T / 2) S.line(g, px + xx, yy, px + xx, yy + 13, 0.9, 'rgba(10,30,30,0.5)', 0.5, 1); }
+      if (rng() < 0.4) { g.fillStyle = 'rgba(93,138,90,0.7)'; S.blobPath(g, px + rng() * T, py + T - 5, 8, 4, 2); g.fill(); }
+      return;
+    }
     if (m.theme === 'swamp') {
       g.globalAlpha = 0.9; g.fillStyle = th.wall; g.fillRect(px, py + 10, T, T - 10); g.globalAlpha = 1;
       S.line(g, px, py + 10, px + T, py + 10, 1, 'rgba(20,30,20,0.5)', 1.2, 1);
@@ -582,6 +648,19 @@
     S.hatchCircle(g, x + r * 0.2, y + r * 0.25, r * 0.8, r * 0.7, { sp: 4, c: '#1d2a12', a: 0.35, w: 0.7 });
     S.line(g, x - r * 0.4, y - r * 0.2, x - r * 0.1, y - r * 0.5, 1, 'rgba(255,255,220,0.5)', 1, 1);
   }
+  // Pic des Harpies : parois rocheuses qui plongent vers le vide sous chaque rebord
+  function drawCliffs(g, m, rng) {
+    for (let y = 1; y < m.h; y++) for (let x = 0; x < m.w; x++) {
+      if (W.get(m, x, y) !== 0 || !W.isFloor(m, x, y - 1)) continue;
+      const px = x * T, py = y * T, h = T * (0.6 + rng() * 0.5);
+      g.fillStyle = '#7a7e86';
+      g.beginPath(); g.moveTo(px - 1, py); g.lineTo(px + T + 1, py); g.lineTo(px + T - 2, py + h); g.lineTo(px + 3, py + h * 0.85); g.closePath(); g.fill();
+      S.hatchArea(g, px, py, T, h, { sp: 4, ang: 1.4, c: '#2f333a', a: 0.35, w: 0.7 });
+      S.line(g, px + 3, py + h * 0.85, px + T - 2, py + h, 1.2, S.ink, 0.8, 1);
+      g.fillStyle = '#f7fbff'; g.fillRect(px - 1, py - 1, T + 2, 4);
+    }
+  }
+
   function drawReedBorder(g, m, rng) {
     for (let y = 0; y < m.h; y++) for (let x = 0; x < m.w; x++) {
       if (W.get(m, x, y) !== 0 || !W.isFloor(m, x, y + 1) && !W.isFloor(m, x, y - 1) && !W.isFloor(m, x + 1, y) && !W.isFloor(m, x - 1, y)) continue;
@@ -693,10 +772,40 @@
     const rr = G.seeded(o.seed + 1);
     switch (o.kind) {
       case 'pillar': {
-        S.circle(g, cx, y + h - 6, w * 0.45, { ry: 9, fill: '#9a9488', w: 1.6 });
-        S.rect(g, cx - w * 0.3, y - 18, w * 0.6, h - 6 + 18 - 4, { fill: '#c9c1af', w: 1.8, hatch: { sp: 5, ang: 1.5, c: '#2b2118', a: 0.2, w: 0.7 } });
-        S.rect(g, cx - w * 0.38, y - 26, w * 0.76, 10, { fill: '#b5ad9c', w: 1.6 });
+        const tl = m.theme === 'temple';
+        S.circle(g, cx, y + h - 6, w * 0.45, { ry: 9, fill: tl ? '#6f9a96' : '#9a9488', w: 1.6 });
+        S.rect(g, cx - w * 0.3, y - 18, w * 0.6, h - 6 + 18 - 4, { fill: tl ? '#9fc4be' : '#c9c1af', w: 1.8, hatch: { sp: 5, ang: 1.5, c: '#2b2118', a: 0.2, w: 0.7 } });
+        S.rect(g, cx - w * 0.38, y - 26, w * 0.76, 10, { fill: tl ? '#86b0aa' : '#b5ad9c', w: 1.6 });
         S.line(g, cx - w * 0.18, y - 14, cx - w * 0.18, y + h - 12, 0.8, 'rgba(255,255,240,0.6)', 0.5, 1);
+        if (tl) for (let k = 0; k < 3; k++) S.line(g, cx - w * 0.3 + k * 6, y + h - 10, cx - w * 0.3 + k * 6 + 4, y + h - 30 - k * 6, 1.6, '#4f7a3d', 1.2, 1);
+        break;
+      }
+      case 'crystal': {
+        const cols = rr() < 0.5 ? ['#8fd8f0', '#5fb0d8'] : ['#c9a0f0', '#9b6fe0'];
+        for (let k = 0; k < 4; k++) {
+          const bx = cx - 12 + k * 8 + (rr() - 0.5) * 4, hh = 18 + rr() * 22, ww = 5 + rr() * 4, lean = (k - 1.5) * 4;
+          S.poly(g, [[bx - ww, cy + 10], [bx - ww * 0.6 + lean, cy + 10 - hh], [bx + lean, cy + 4 - hh - 6], [bx + ww * 0.6 + lean, cy + 10 - hh], [bx + ww, cy + 10]], { fill: cols[k % 2], fillA: 0.9, w: 1.3 });
+          S.line(g, bx + lean * 0.5, cy + 8, bx + lean, cy + 2 - hh, 0.8, 'rgba(255,255,255,0.8)', 0.3, 1);
+        }
+        break;
+      }
+      case 'pine': {
+        S.line(g, cx, cy + 14, cx, cy - 4, 3, '#5a4030');
+        for (let k = 0; k < 3; k++) S.poly(g, [[cx - 18 + k * 4, cy + 6 - k * 12], [cx, cy - 18 - k * 12], [cx + 18 - k * 4, cy + 6 - k * 12]], { fill: '#3e5a3a', w: 1.4 });
+        for (let k = 0; k < 3; k++) { g.fillStyle = '#f7fbff'; S.blobPath(g, cx, cy - 10 - k * 12, 9 - k * 2, 3, 1.5, 8); g.fill(); }
+        break;
+      }
+      case 'icerock': {
+        S.poly(g, [[cx - 15, cy + 10], [cx - 11, cy - 10], [cx + 2, cy - 16], [cx + 14, cy - 6], [cx + 15, cy + 10]], { fill: '#9aa6b4', w: 1.6, hatch: { sp: 5, c: '#2f333a', a: 0.25, w: 0.6 } });
+        g.fillStyle = '#f7fbff'; S.blobPath(g, cx - 2, cy - 12, 11, 4, 2, 8); g.fill();
+        S.poly(g, [[cx + 6, cy + 10], [cx + 9, cy - 2], [cx + 13, cy + 10]], { fill: '#bfe4f4', w: 1, single: true });
+        break;
+      }
+      case 'column': {
+        S.circle(g, cx, cy + 10, 14, { ry: 6, fill: '#6f9a96', w: 1.5 });
+        S.rect(g, cx - 9, cy - 30, 18, 40, { fill: '#9fc4be', w: 1.6, hatch: { sp: 4, ang: 1.5, c: '#1d3a3a', a: 0.25, w: 0.6 } });
+        S.rect(g, cx - 12, cy - 36, 24, 8, { fill: '#86b0aa', w: 1.4 });
+        S.line(g, cx - 4, cy + 8, cx + 2, cy - 22, 1.6, '#4f7a3d', 1.4, 1);
         break;
       }
       case 'beam': {
@@ -814,6 +923,15 @@
         break;
       case 'moss':
         g.fillStyle = 'rgba(110,150,80,0.6)'; S.blobPath(g, x, y + 20, 12, 6, 3); g.fill();
+        break;
+      case 'vein':
+        for (let k = 0; k < 3; k++) { g.fillStyle = k % 2 ? '#c9a0f0' : '#8fd8f0'; g.beginPath(); g.moveTo(x - 10 + k * 9, y + 30); g.lineTo(x - 7 + k * 9, y + 10 + k * 3); g.lineTo(x - 3 + k * 9, y + 30); g.closePath(); g.fill(); g.strokeStyle = S.ink; g.lineWidth = 0.8; g.stroke(); }
+        break;
+      case 'icicles':
+        for (let k = 0; k < 4; k++) { const ix = x - 13 + k * 8, l = 8 + ((d.seed >> k) % 10); g.fillStyle = '#e8f4fb'; g.beginPath(); g.moveTo(ix - 3, y + 30); g.lineTo(ix + 3, y + 30); g.lineTo(ix, y + 30 + l); g.closePath(); g.fill(); g.strokeStyle = '#7f9ab0'; g.lineWidth = 0.7; g.stroke(); }
+        break;
+      case 'seaweedwall':
+        for (let k = 0; k < 3; k++) { g.strokeStyle = '#4f7a3d'; g.lineWidth = 2; g.beginPath(); g.moveTo(x - 8 + k * 8, y + 32); g.quadraticCurveTo(x - 14 + k * 8, y + 18, x - 6 + k * 8, y + 6); g.stroke(); }
         break;
     }
   }
@@ -990,6 +1108,42 @@
       case 'campfire':
         for (let i = 0; i < 7; i++) { const a = (i / 7) * G.TAU; S.circle(g, x + Math.cos(a) * 14, y + Math.sin(a) * 9, 4.5, { fill: '#8a8478', w: 1 }); }
         S.line(g, x - 9, y + 4, x + 9, y - 4, 2.5, '#5a4030'); S.line(g, x - 9, y - 4, x + 9, y + 4, 2.5, '#5a4030');
+        break;
+      case 'crystalsmall':
+        for (let k = 0; k < 3; k++) S.poly(g, [[x - 6 + k * 5, y + 4], [x - 4 + k * 5, y - 8 - k * 2], [x - 1 + k * 5, y + 4]], { fill: k % 2 ? '#c9a0f0' : '#8fd8f0', w: 0.9, single: true });
+        break;
+      case 'geodeRock':
+        S.circle(g, x, y, 10 * s, { ry: 8 * s, fill: '#6d6878', w: 1.4 });
+        S.circle(g, x + 2, y - 1, 5 * s, { ry: 4 * s, fill: '#b48ae0', w: 0.8, single: true });
+        break;
+      case 'snowpile':
+        g.fillStyle = '#f7fbff'; S.blobPath(g, x, y, 14 * s, 6 * s, 2, 10); g.fill(); g.strokeStyle = '#9fb4c8'; g.lineWidth = 1; g.stroke();
+        break;
+      case 'icicle':
+        S.poly(g, [[x - 7, y + 5], [x - 2, y - 14], [x + 3, y + 5]], { fill: '#bfe4f4', w: 1 }); S.poly(g, [[x + 2, y + 5], [x + 6, y - 7], [x + 9, y + 5]], { fill: '#d6eef8', w: 0.9 });
+        break;
+      case 'nest':
+        S.circle(g, x, y, 13 * s, { ry: 7 * s, fill: '#8a6a45', w: 1.4, hatch: { sp: 3, ang: 0.4, c: '#3a2a1a', a: 0.4, w: 0.6 } });
+        S.circle(g, x - 3, y - 2, 3.5, { ry: 4.5, fill: '#efe7d0', w: 0.8 }); S.circle(g, x + 4, y - 1, 3.5, { ry: 4.5, fill: '#efe7d0', w: 0.8 });
+        break;
+      case 'feather':
+        S.line(g, x - 8, y + 4, x + 8, y - 4, 1, '#3a2a1a', 0.4, 1);
+        g.fillStyle = '#8a5a3a'; g.beginPath(); g.ellipse(x, y, 9, 3, -0.45, 0, G.TAU); g.fill();
+        break;
+      case 'coral':
+        for (let k = -1; k <= 1; k++) S.line(g, x, y + 6, x + k * 7, y - 10 - Math.abs(k) * 2, 2.2, ['#e07a6a', '#e8a06a', '#c96a9a'][(d.seed + k + 1) % 3], 1, 1);
+        S.circle(g, x, y + 5, 5, { ry: 3, fill: '#c9b48a', w: 0.8 });
+        break;
+      case 'seaweed':
+        for (let k = 0; k < 3; k++) { g.strokeStyle = '#4f7a3d'; g.lineWidth = 1.8; g.beginPath(); g.moveTo(x - 4 + k * 4, y + 6); g.quadraticCurveTo(x - 9 + k * 5, y - 6, x - 2 + k * 4, y - 16); g.stroke(); }
+        break;
+      case 'shell':
+        S.circle(g, x, y, 6 * s, { ry: 4.5 * s, fill: '#efd9c0', w: 1 });
+        for (let k = -2; k <= 2; k++) S.line(g, x, y + 4, x + k * 2.4, y - 3, 0.6, 'rgba(43,33,24,0.6)', 0.2, 1);
+        break;
+      case 'runes':
+        S.circle(g, x, y, 13, { ry: 8, stroke: '#7fd0e0', w: 1.4, single: true });
+        S.line(g, x - 6, y - 2, x, y + 3, 1.2, '#7fd0e0', 0.3, 1); S.line(g, x, y + 3, x + 6, y - 3, 1.2, '#7fd0e0', 0.3, 1);
         break;
       case 'standing':
         S.rect(g, x - 6, y - 26, 12, 30, { fill: '#8a8478', w: 1.5, hatch: { sp: 5, c: '#2b2118', a: 0.25, w: 0.6 } });

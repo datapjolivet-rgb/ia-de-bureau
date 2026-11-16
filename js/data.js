@@ -238,6 +238,46 @@
     gargoyle: { name: 'Gargouille', hp: 150, dmg: 25, speed: 85, r: 17, xp: 40, gold: [8, 15], look: 'gargoyle', col: '#7a7a82', flying: true,
       atks: [{ t: 'swing', range: 54, arc: 110, windup: 0.6, cd: 1.5 }, { t: 'charge', range: 380, min: 120, windup: 0.8, dist: 380, width: 44, cd: 6, dmgMul: 1.5 }] },
 
+    // ----- Cavernes de Cristal -----
+    shardling: { name: 'Éclat animé', hp: 36, dmg: 9, speed: 155, r: 9, xp: 12, gold: [2, 5], look: 'shardling', col: '#8fd8f0', glow: '#8fd8f0',
+      atks: [{ t: 'swing', range: 32, arc: 80, windup: 0.3, cd: 0.8 }] },
+    crystalSpider: { name: 'Araignée de cristal', hp: 60, dmg: 13, speed: 120, r: 13, xp: 18, gold: [3, 7], look: 'crystalSpider', col: '#6f8fd0', keep: 220,
+      atks: [{ t: 'shoot', range: 380, windup: 0.55, cd: 2.8, speed: 340, count: 3, spreadAng: 14, dmgMul: 0.8, color: '#8fd8f0' }] },
+    geode: { name: 'Géode vivante', hp: 120, dmg: 20, speed: 70, r: 16, xp: 26, gold: [5, 11], look: 'geode', col: '#7a6f8a', deathRing: { count: 8, speed: 240, dmgMul: 0.35, color: '#b48ae0' },
+      atks: [{ t: 'swing', range: 50, arc: 110, windup: 0.6, cd: 1.5 }, { t: 'charge', range: 320, min: 110, windup: 0.8, dist: 320, width: 40, cd: 6, dmgMul: 1.4 }] },
+    luminant: { name: 'Luminant', hp: 70, dmg: 22, speed: 80, r: 13, xp: 22, gold: [4, 10], look: 'luminant', col: '#b48ae0', keep: 260, glow: '#b48ae0', blink: { range: 130, dist: 220, cd: 9 },
+      atks: [{ t: 'line', range: 520, len: 560, width: 20, delay: 0.9, windup: 0.3, cd: 3.4, dmgMul: 1.2, color: '#9b6fe0' }, { t: 'circle', range: 440, radius: 60, delay: 1.0, windup: 0.4, cd: 4, color: '#9b6fe0' }] },
+    crystalGolem: { name: 'Colosse de cristal', hp: 220, dmg: 30, speed: 60, r: 22, xp: 60, gold: [12, 22], look: 'crystalGolem', col: '#6f8fd0', glow: '#8fd8f0', deathRing: { count: 12, speed: 260, dmgMul: 0.45, color: '#8fd8f0' },
+      atks: [{ t: 'swing', range: 66, arc: 120, windup: 0.8, cd: 1.7 }, { t: 'nova', range: 130, radius: 140, windup: 1.2, cd: 7, dmgMul: 1.3 },
+        { t: 'sweep', range: 360, len: 360, width: 30, steps: 6, stepAng: 18, stepT: 0.1, delay: 0.8, windup: 0.5, cd: 9, dmgMul: 0.9, color: '#5fc0e0' }] },
+    prism: { name: 'Prisme', hp: 90, dmg: 20, speed: 0, r: 14, xp: 10, gold: [1, 3], look: 'prism', col: '#8fd8f0', glow: '#8fd8f0',
+      atks: [{ t: 'line', range: 900, len: 760, width: 22, delay: 1.0, windup: 0.3, cd: 3.4, dmgMul: 1.3, color: '#5fc0e0' }] },
+
+    // ----- Pic des Harpies -----
+    harpy: { name: 'Harpie', hp: 60, dmg: 14, speed: 170, r: 12, xp: 18, gold: [3, 7], look: 'harpy', col: '#8a5a3a', flying: true,
+      atks: [{ t: 'swing', range: 36, arc: 80, windup: 0.3, cd: 0.9 }, { t: 'charge', range: 300, min: 100, windup: 0.5, dist: 280, width: 34, cd: 5, dmgMul: 1.3 }] },
+    frostWolf: { name: 'Loup des neiges', hp: 65, dmg: 13, speed: 160, r: 13, xp: 16, gold: [2, 6], look: 'wolf', col: '#dfe6ee',
+      atks: [{ t: 'swing', range: 40, arc: 80, windup: 0.32, cd: 0.9, slow: 0.3 }, { t: 'charge', range: 230, min: 90, windup: 0.6, dist: 210, width: 30, cd: 5, dmgMul: 1.4 }] },
+    yeti: { name: 'Yéti', hp: 160, dmg: 24, speed: 80, r: 19, xp: 45, gold: [9, 17], look: 'yeti', col: '#eef1f4',
+      atks: [{ t: 'swing', range: 58, arc: 120, windup: 0.65, cd: 1.5, slow: 0.3 }, { t: 'nova', range: 120, radius: 140, windup: 1.1, cd: 6, dmgMul: 1.3 },
+        { t: 'shoot', range: 360, windup: 0.6, cd: 4, speed: 300, dmgMul: 1.1, slow: 0.4, color: '#e8f0f8' }] },
+    iceShaman: { name: 'Chaman du givre', hp: 75, dmg: 21, speed: 75, r: 13, xp: 26, gold: [5, 11], look: 'iceShaman', col: '#6fb1d9', keep: 260, glow: '#9fd0f0',
+      atks: [{ t: 'circle', range: 440, radius: 64, delay: 1.0, windup: 0.4, cd: 3.2, count: 2, spread: 100, color: '#6fb1d9', slow: 0.35 }, { t: 'heal', range: 320, pct: 0.2, windup: 1.1, cd: 6 }] },
+
+    // ----- Temple Englouti -----
+    merfolk: { name: 'Triton', hp: 100, dmg: 19, speed: 95, r: 14, xp: 24, gold: [4, 10], look: 'merfolk', col: '#4f8a86',
+      atks: [{ t: 'combo', range: 66, arc: 60, windup: 0.5, interval: 0.4, hits: 2, cd: 3, dmgMul: 0.9, lunge: 24 }, { t: 'swing', range: 62, arc: 50, windup: 0.45, cd: 1.3 }] },
+    siren: { name: 'Sirène', hp: 70, dmg: 20, speed: 80, r: 13, xp: 26, gold: [5, 11], look: 'siren', col: '#5f9fa6', keep: 260, glow: '#7fd0e0',
+      atks: [{ t: 'shoot', range: 420, windup: 0.45, cd: 2.2, speed: 340, slow: 0.45, color: '#7fd0e0' }, { t: 'circle', range: 440, radius: 70, delay: 1.1, windup: 0.4, cd: 4.2, color: '#5f9fa6', slow: 0.3 },
+        { t: 'heal', range: 300, pct: 0.2, windup: 1.1, cd: 7 }] },
+    crab: { name: 'Crabe colossal', hp: 150, dmg: 22, speed: 65, r: 17, xp: 34, gold: [6, 13], look: 'crab', col: '#b5461d', guard: 0.75,
+      atks: [{ t: 'swing', range: 54, arc: 110, windup: 0.6, cd: 1.5 }, { t: 'combo', range: 54, arc: 100, windup: 0.5, interval: 0.35, hits: 2, cd: 4.5, dmgMul: 0.9, lunge: 10 }] },
+    eel: { name: 'Anguille électrique', hp: 60, dmg: 16, speed: 180, r: 11, xp: 18, gold: [3, 7], look: 'eel', col: '#3e5a4a', glow: '#e8e070', flying: true,
+      atks: [{ t: 'charge', range: 300, min: 80, windup: 0.45, dist: 260, width: 30, cd: 3.5, dmgMul: 1.3 }, { t: 'swing', range: 34, arc: 80, windup: 0.3, cd: 0.9 }] },
+    deepOne: { name: 'Gardien des abysses', hp: 230, dmg: 30, speed: 80, r: 21, xp: 65, gold: [13, 24], look: 'deepOne', col: '#2f5d6a', regen: 0.015, glow: '#7fd0e0',
+      atks: [{ t: 'combo', range: 72, arc: 130, windup: 0.6, interval: 0.45, hits: 3, cd: 3.6, dmgMul: 0.9, lunge: 20 }, { t: 'nova', range: 130, radius: 140, windup: 1.1, cd: 7, dmgMul: 1.3 },
+        { t: 'whirlpool', range: 400, radius: 110, dur: 5, pull: 70, windup: 0.8, cd: 12, dmgMul: 0.12 }] },
+
     // ----- Tutoriel -----
     dummy: { name: 'Mannequin d\'entraînement', hp: 999999, dmg: 0, speed: 0, r: 15, xp: 0, gold: [0, 0], look: 'dummy', col: '#c9a46a', dummy: true, atks: [] },
     runeStone: { name: 'Pierre runique', hp: 999999, dmg: 7, speed: 0, r: 18, xp: 0, gold: [0, 0], look: 'runeStone', col: '#7b3fa6', dummy: true, glow: '#b48ae0',
@@ -361,11 +401,75 @@
           { t: 'summon', range: 9999, windup: 1, cd: 18, mon: 'book', count: 4 },
         ] },
       ] },
+    prismatrix: { name: 'Prismatrix', boss: true, hp: 80000, dmg: 110, speed: 65, r: 34, xp: 9000, gold: [1200, 1500], look: 'prismatrix', col: '#8a6fd0', glow: '#b48ae0',
+      intro: '« Chaque éclat de moi est un miroir. Et chaque miroir te tuera. »',
+      phases: [
+        { above: 0.65, atks: [
+          { t: 'shoot', range: 9999, windup: 0.55, cd: 2.4, speed: 380, count: 5, spreadAng: 12, dmgMul: 0.7, color: '#8fd8f0' },
+          { t: 'sweep', range: 9999, len: 640, width: 34, steps: 10, stepAng: 14, stepT: 0.1, delay: 0.9, windup: 0.5, cd: 7, dmgMul: 1.1, color: '#9b6fe0' },
+          { t: 'swing', range: 96, arc: 140, windup: 0.7, cd: 1.8, dmgMul: 1.2 },
+        ] },
+        { above: 0.3, msg: 'Prismatrix se fragmente : des prismes jaillissent du sol !', atks: [
+          { t: 'summon', range: 9999, windup: 1, cd: 22, mon: 'prism', count: 3, spread: 300 },
+          { t: 'sweep', range: 9999, len: 660, width: 34, steps: 12, stepAng: 15, stepT: 0.09, delay: 0.85, windup: 0.5, cd: 6.5, dmgMul: 1.1, color: '#9b6fe0' },
+          { t: 'ring', range: 9999, windup: 0.7, cd: 5, count: 18, speed: 260, dmgMul: 0.6, color: '#8fd8f0' },
+          { t: 'shoot', range: 9999, windup: 0.5, cd: 2.4, speed: 400, count: 5, spreadAng: 12, dmgMul: 0.7, color: '#8fd8f0' },
+        ] },
+        { above: 0, msg: 'Le cœur de Prismatrix s\'emballe !', speedMul: 1.2, atks: [
+          { t: 'sweep', range: 9999, len: 700, width: 36, steps: 16, stepAng: 22, stepT: 0.08, delay: 0.8, windup: 0.45, cd: 6, dmgMul: 1.1, color: '#9b6fe0' },
+          { t: 'ring', range: 9999, windup: 0.6, cd: 4, count: 24, speed: 280, dmgMul: 0.6, color: '#8fd8f0' },
+          { t: 'summon', range: 9999, windup: 1, cd: 20, mon: 'prism', count: 2, spread: 300 },
+          { t: 'nova', range: 170, radius: 180, windup: 1.0, cd: 8, dmgMul: 1.6 },
+        ] },
+      ] },
+    sycorax: { name: 'Reine Sycorax', boss: true, hp: 100000, dmg: 120, speed: 120, r: 30, xp: 12500, gold: [1500, 1900], look: 'sycorax', col: '#8a5a3a', flying: true,
+      intro: '« Personne n\'a jamais atteint mon nid. Personne n\'en est jamais redescendu. »',
+      phases: [
+        { above: 0.6, atks: [
+          { t: 'shoot', range: 9999, windup: 0.5, cd: 2.6, speed: 420, count: 7, spreadAng: 10, dmgMul: 0.6, color: '#6b4a2c' },
+          { t: 'charge', range: 700, min: 120, windup: 0.7, dist: 600, width: 60, cd: 5, dmgMul: 1.5 },
+          { t: 'swing', range: 70, arc: 140, windup: 0.55, cd: 1.5, dmgMul: 1.1 },
+          { t: 'summon', range: 9999, windup: 1, cd: 16, mon: 'harpy', count: 2 },
+        ] },
+        { above: 0.25, msg: 'Sycorax déchaîne la tempête !', atks: [
+          { t: 'gust', range: 9999, windup: 0.8, cd: 7, strength: 190, dur: 1.4 },
+          { t: 'tornado', range: 9999, windup: 0.6, cd: 10, count: 2, radius: 64, dur: 9, speed: 75, dmgMul: 0.2 },
+          { t: 'shoot', range: 9999, windup: 0.5, cd: 2.4, speed: 420, count: 9, spreadAng: 10, dmgMul: 0.6, color: '#6b4a2c' },
+          { t: 'charge', range: 700, min: 120, windup: 0.65, dist: 600, width: 60, cd: 4.5, dmgMul: 1.5 },
+        ] },
+        { above: 0, msg: 'La Reine des Harpies plonge dans une rage aveugle !', speedMul: 1.3, atks: [
+          { t: 'charge', range: 700, min: 100, windup: 0.6, dist: 640, width: 62, cd: 3.5, dmgMul: 1.6 },
+          { t: 'shoot', range: 9999, windup: 0.45, cd: 2, speed: 440, count: 11, spreadAng: 9, dmgMul: 0.6, color: '#6b4a2c' },
+          { t: 'tornado', range: 9999, windup: 0.6, cd: 9, count: 3, radius: 64, dur: 9, speed: 80, dmgMul: 0.2 },
+          { t: 'gust', range: 9999, windup: 0.7, cd: 6, strength: 210, dur: 1.4 },
+        ] },
+      ] },
+    leviathe: { name: 'Léviathe', boss: true, hp: 125000, dmg: 130, speed: 70, r: 38, xp: 16000, gold: [1900, 2400], look: 'leviathe', col: '#2f6f86', glow: '#7fd0e0',
+      intro: '« Les dieux ont noyé ce temple. Moi, je l\'ai gardé. »',
+      phases: [
+        { above: 0.65, atks: [
+          { t: 'swing', range: 100, arc: 120, windup: 0.7, cd: 1.7, dmgMul: 1.3 },
+          { t: 'line', range: 9999, len: 700, width: 70, delay: 1.0, windup: 0.3, cd: 5, count: 3, spreadAng: 20, dmgMul: 1.1, color: '#2f6f86' },
+          { t: 'shoot', range: 9999, windup: 0.5, cd: 2.6, speed: 380, count: 4, spreadAng: 16, dmgMul: 0.7, color: '#7fd0e0' },
+        ] },
+        { above: 0.3, msg: 'Léviathe plonge… les eaux tourbillonnent !', atks: [
+          { t: 'dive', range: 9999, radius: 160, windup: 1.5, cd: 7, dmgMul: 1.7 },
+          { t: 'whirlpool', range: 9999, radius: 130, dur: 6, pull: 95, windup: 0.6, cd: 9, count: 2, spread: 220, dmgMul: 0.15 },
+          { t: 'summon', range: 9999, windup: 1, cd: 16, mon: 'eel', count: 3 },
+          { t: 'line', range: 9999, len: 720, width: 70, delay: 0.95, windup: 0.3, cd: 5, count: 3, spreadAng: 20, dmgMul: 1.1, color: '#2f6f86' },
+        ] },
+        { above: 0, msg: 'Le temple tremble : Léviathe se déchaîne !', speedMul: 1.2, atks: [
+          { t: 'sweep', range: 9999, len: 720, width: 46, steps: 14, stepAng: 16, stepT: 0.09, delay: 0.85, windup: 0.5, cd: 6.5, dmgMul: 1.1, color: '#2f6f86' },
+          { t: 'dive', range: 9999, radius: 170, windup: 1.4, cd: 6, dmgMul: 1.8 },
+          { t: 'ring', range: 9999, windup: 0.6, cd: 4.5, count: 22, speed: 270, dmgMul: 0.6, color: '#7fd0e0' },
+          { t: 'whirlpool', range: 9999, radius: 130, dur: 6, pull: 100, windup: 0.6, cd: 10, count: 2, spread: 220, dmgMul: 0.15 },
+        ] },
+      ] },
   };
 
   // ---------- Donjons ----------
   // rooms : [x, y, w, h, "spawns"] (en cases). "nom:n" = n monstres, "nom!:n" = élites, "chest" = coffre, "boss".
-  // "#water", "#pillars", "#shelves", "#trees", "#statues" ajoutent des éléments de décor (toujours au même endroit).
+  // "#water", "#pillars", "#shelves", "#trees", "#statues", "#crystals" ajoutent des éléments de décor (toujours au même endroit).
   D.DUNGEONS = [
     { id: 1, name: 'Cryptes de Cendrefosse', lvl: 1, boss: 'varok', theme: 'crypt', w: 90, h: 64, playable: true,
       story: 'Sous le vieux cimetière, Varok le Fossoyeur relève les morts de Havre-Gris. Il garde le premier Fragment du Sceau.',
@@ -399,9 +503,24 @@
         [40, 22, 18, 14, 'inkslime:3 apprentice:2 #shelves'], [64, 4, 16, 14, 'gargoyle!:1 book:3 #statues chest'], [64, 24, 16, 14, 'apprentice:2 inkslime:2 book:2 #shelves'],
         [18, 42, 16, 12, 'inkslime:2 gargoyle:1 apprentice:1 chest #statues'], [42, 42, 40, 20, 'boss #statues']],
       links: [[0, 1], [1, 2], [1, 3], [3, 4], [2, 5], [4, 6], [5, 6], [3, 7], [6, 8]] },
-    { id: 7, name: 'Cavernes de Cristal', lvl: 19, bossName: 'Prismatrix' },
-    { id: 8, name: 'Pic des Harpies', lvl: 22, bossName: 'Reine Sycorax' },
-    { id: 9, name: 'Temple Englouti', lvl: 25, bossName: 'Léviathe' },
+    { id: 7, name: 'Cavernes de Cristal', lvl: 19, boss: 'prismatrix', theme: 'crystal', w: 96, h: 64, playable: true,
+      story: 'Sous la montagne, les cristaux chantent et tuent. Prismatrix, une créature faite de lumière brisée, protège le septième Fragment.',
+      rooms: [[44, 4, 10, 9, 'entry'], [40, 18, 18, 12, 'shardling:3 crystalSpider:2 #crystals'], [16, 16, 16, 14, 'geode:2 luminant:2 #crystals chest'],
+        [66, 16, 16, 14, 'crystalSpider:3 shardling:3 #crystals'], [14, 38, 16, 14, 'crystalGolem!:1 shardling:3 #crystals chest'],
+        [40, 36, 18, 14, 'luminant:2 geode:2 crystalSpider:2 #crystals'], [68, 38, 14, 12, 'geode:3 luminant:1 chest'], [32, 51, 34, 12, 'boss #crystals']],
+      links: [[0, 1], [1, 2], [1, 3], [2, 4], [1, 5], [3, 6], [5, 7], [4, 5]] },
+    { id: 8, name: 'Pic des Harpies', lvl: 22, boss: 'sycorax', theme: 'peak', w: 96, h: 64, playable: true, wind: true,
+      story: 'Au sommet du monde, le vent hurle et les harpies chassent. Leur reine, Sycorax, couve le huitième Fragment dans son nid.',
+      rooms: [[6, 50, 10, 9, 'entry'], [22, 46, 16, 12, 'harpy:3 frostWolf:2'], [44, 48, 14, 12, 'yeti:1 frostWolf:3 #trees chest'], [22, 26, 16, 12, 'iceShaman:2 harpy:3 #trees'],
+        [64, 44, 16, 14, 'yeti!:1 harpy:2 iceShaman:1 #trees chest'], [44, 24, 16, 14, 'harpy:4 iceShaman:1 frostWolf:2 #trees'], [66, 22, 14, 12, 'yeti:2 frostWolf:2 chest'],
+        [36, 2, 32, 15, 'boss']],
+      links: [[0, 1], [1, 2], [1, 3], [2, 4], [3, 5], [2, 5], [4, 6], [5, 7], [5, 6]] },
+    { id: 9, name: 'Temple Englouti', lvl: 25, boss: 'leviathe', theme: 'temple', w: 96, h: 64, playable: true,
+      story: 'Un temple englouti par la mer, où les statues prient encore sous l\'eau. Léviathe, le serpent des abysses, y garde le neuvième Fragment.',
+      rooms: [[4, 26, 10, 10, 'entry'], [20, 24, 16, 14, 'merfolk:3 crab:1 #water #pillars'], [20, 4, 16, 12, 'siren:2 eel:2 #water chest'], [20, 46, 16, 12, 'crab:2 merfolk:2 #water chest'],
+        [42, 22, 18, 18, 'deepOne!:1 merfolk:2 siren:1 #water #pillars'], [44, 4, 14, 12, 'eel:3 siren:1 #water'], [44, 46, 14, 12, 'crab:2 eel:2 merfolk:1 #water chest'],
+        [66, 14, 26, 34, 'boss #water #pillars']],
+      links: [[0, 1], [1, 2], [1, 3], [1, 4], [2, 5], [3, 6], [4, 7], [5, 4], [6, 4]] },
     { id: 10, name: 'Forge des Titans', lvl: 28, bossName: 'Brasier, le Titan forgeron' },
     { id: 11, name: 'Désert des Os', lvl: 31, bossName: 'Sekhar, Roi des Sables' },
     { id: 12, name: 'Citadelle de Givre', lvl: 34, bossName: 'Hivernia, la Reine de Givre' },
@@ -419,6 +538,9 @@
     bastion: { floor: '#e2d8c2', floorAlt: '#d3c7ad', wall: '#7d7366', wallDark: '#2e2a26', deco: ['banner', 'armor', 'brazier', 'rubble', 'weapons', 'shieldwall'], dark: 0.5, ambient: 'ember', obstacle: 'pillar', torch: true },
     library: { floor: '#dcc9a3', floorAlt: '#cfba92', wall: '#6b4a2c', wallDark: '#2a1d14', deco: ['books', 'candle', 'papers', 'globe', 'candelabra', 'scroll'], dark: 0.52, ambient: 'page', obstacle: 'shelf', torch: true },
     town: { floor: '#dfe0b8', floorAlt: '#d3d5a6', wall: '#8a8478', wallDark: '#3d3832', dark: 0 },
+    crystal: { floor: '#d9d4e6', floorAlt: '#cbc4de', wall: '#5a5470', wallDark: '#221d33', deco: ['crystalsmall', 'geodeRock', 'crystalsmall', 'bones', 'rock', 'glowshroom'], dark: 0.6, ambient: 'sparkle', obstacle: 'crystal' },
+    peak: { floor: '#eef1f4', floorAlt: '#dfe5ea', wall: '#8a8e96', wallDark: '#b8d4ea', deco: ['snowpile', 'rock', 'icicle', 'bones', 'nest', 'feather'], dark: 0.08, ambient: 'snow', obstacle: 'pine' },
+    temple: { floor: '#cfe0dc', floorAlt: '#bdd3cf', wall: '#4f7a78', wallDark: '#14303a', water: '#5f9fa6', deep: '#163a46', deco: ['coral', 'seaweed', 'shell', 'urn', 'runes', 'coral'], dark: 0.5, ambient: 'bubble', obstacle: 'column', torch: true, blueFire: true },
     tuto: { floor: '#dfe0b8', floorAlt: '#d3d5a6', wall: '#4f6a34', wallDark: '#28361d', dark: 0 },
   };
 
@@ -454,6 +576,21 @@
       reward: { gold: 1400, xp: 8000 } },
     { id: 'q6b', title: 'Taches d\'encre', dungeon: 6, type: 'kill', target: 'inkslime', n: 10, lvl: 16, after: 'q5',
       text: 'L\'encre vivante se divise quand on la frappe. Détruisez dix de ces horreurs avant qu\'elles n\'atteignent les archives de la ville.', reward: { gold: 700, xp: 3200 } },
+    { id: 'q7', main: true, title: 'Le cœur de cristal', dungeon: 7, type: 'boss', target: 'prismatrix', n: 1, lvl: 19, after: 'q6',
+      text: 'Sous la montagne, des cavernes de cristal brillent sans soleil. Une créature y est née de la lumière brisée : Prismatrix. Elle tient le septième fragment. Ses rayons tournent comme les aiguilles d\'une horloge : ne restez jamais sur leur chemin.',
+      reward: { gold: 1900, xp: 12000 } },
+    { id: 'q7b', title: 'Éclats dangereux', dungeon: 7, type: 'kill', target: 'geode', n: 10, lvl: 19, after: 'q6',
+      text: 'Les géodes vivantes éclatent en mourant et projettent leurs cristaux partout. Brisez-en dix, mais pas de trop près.', reward: { gold: 950, xp: 5000 } },
+    { id: 'q8', main: true, title: 'La reine du pic', dungeon: 8, type: 'boss', target: 'sycorax', n: 1, lvl: 22, after: 'q7',
+      text: 'Le huitième fragment est au sommet du Pic des Harpies, dans le nid de la Reine Sycorax. Là-haut, le vent peut vous pousser à tout moment. Gardez toujours une marge.',
+      reward: { gold: 2500, xp: 17000 } },
+    { id: 'q8b', title: 'Plumes et griffes', dungeon: 8, type: 'kill', target: 'harpy', n: 15, lvl: 22, after: 'q7',
+      text: 'Les harpies enlèvent nos moutons, et bientôt nos enfants. Abattez-en quinze.', reward: { gold: 1200, xp: 7000 } },
+    { id: 'q9', main: true, title: 'Le gardien des abysses', dungeon: 9, type: 'boss', target: 'leviathe', n: 1, lvl: 25, after: 'q8',
+      text: 'Un temple entier a sombré dans la mer avec le neuvième fragment. Léviathe, un serpent plus long qu\'un navire, garde ses ruines. Ses tourbillons aspirent tout : nagez à contre-courant.',
+      reward: { gold: 3200, xp: 24000 } },
+    { id: 'q9b', title: 'Chant des sirènes', dungeon: 9, type: 'kill', target: 'siren', n: 10, lvl: 25, after: 'q8',
+      text: 'Le chant des sirènes attire nos pêcheurs vers le fond. Faites-en taire dix.', reward: { gold: 1500, xp: 9500 } },
   ];
 
   // ---------- Objets ----------
@@ -483,9 +620,9 @@
     berserker: ['Haches jumelles', 'Grande hache', 'Hachoir'], barde: ['Luth', 'Harpe', 'Flûte de guerre'],
   };
   D.SUFFIX = ['du Loup', 'de l\'Ours', 'du Faucon', 'de la Braise', 'du Givre', 'des Ombres', 'de l\'Aube', 'du Sanglier', 'de la Tempête',
-    'des Anciens', 'du Crépuscule', 'de la Marée', 'du Corbeau', 'de l\'Éclipse', 'du Serment', 'des Cendres', 'des Marais', 'du Parjure', 'de l\'Archive'];
+    'des Anciens', 'du Crépuscule', 'de la Marée', 'du Corbeau', 'de l\'Éclipse', 'du Serment', 'des Cendres', 'des Marais', 'du Parjure', 'de l\'Archive', 'du Cristal', 'des Cimes', 'des Abysses'];
   D.LEGENDARY = ['Cendrelame', 'Murmure-du-Néant', 'Cœur de Varok', 'Chant des Ronces', 'Fer-Maudit', 'Larme de l\'Aube', 'Ultime Serment', 'Briseur de Sceaux',
-    'Croc de Gloumbra', 'Serment d\'Halvard', 'Page Interdite'];
+    'Croc de Gloumbra', 'Serment d\'Halvard', 'Page Interdite', 'Éclat de Prismatrix', 'Plume de Sycorax', 'Écaille de Léviathe'];
   D.STAT_NAMES = { pow: 'Puissance', vit: 'Vitalité', arm: 'Armure', crit: 'Critique', haste: 'Hâte' };
 
   // ---------- Habitants de Havre-Gris (ambiance) ----------
