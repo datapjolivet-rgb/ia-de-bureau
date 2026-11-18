@@ -29,7 +29,7 @@
     $('tutoskip').onclick = () => G.Tuto && G.Tuto.skip();
     $('pbody').addEventListener('click', onPanelClick);
     $('pbody').addEventListener('contextmenu', onPanelRightClick);
-    $('pbody').addEventListener('change', (e) => { if (panelId === 'options') UI.optionsChange(e); });
+    $('pbody').addEventListener('change', (e) => { if (panelId === 'options') UI.optionsChange(e); if (UI.panelChange[panelId]) UI.panelChange[panelId](e); });
     $('ui').addEventListener('mouseover', (e) => { const t = e.target.closest('[data-tip]'); tipRef = t ? t.dataset.tip : null; showTip(t); });
     $('ui').addEventListener('mouseout', (e) => { if (!e.relatedTarget || !e.relatedTarget.closest || !e.relatedTarget.closest('[data-tip]')) { tipRef = null; $('tip').hidden = true; } });
   };
@@ -86,7 +86,7 @@
     const rb = $('resbar');
     rb.children[0].style.width = (100 * p.res / p.resMax).toFixed(1) + '%';
     rb.children[1].textContent = Math.floor(p.res) + ' / ' + p.resMax;
-    $('pname').innerHTML = `<span>${esc(ch.name)}${ch.hardcore ? '<span class="hc">HC</span>' : ''}${ch.legend ? '<span class="legend">★</span>' : ''}</span><small>Niv. ${ch.lvl} ${D.CLASSES[ch.cls].name}</small>`;
+    $('pname').innerHTML = `<span>${esc(ch.name)}${ch.hardcore ? '<span class="hc">HC</span>' : ''}${ch.legend ? '<span class="legend">★</span>' : ''}${ch.creator ? '<span class="creator" title="Mode créateur">✎</span>' : ''}</span><small>Niv. ${ch.lvl} ${D.CLASSES[ch.cls].name}</small>`;
     const need = D.xpNext(ch.lvl);
     $('xpbar').children[0].style.width = (ch.lvl >= D.MAX_LEVEL ? 100 : (100 * ch.xp) / need).toFixed(1) + '%';
     $('xpbar').children[1].textContent = ch.lvl >= D.MAX_LEVEL ? 'Niveau maximum' : 'Expérience ' + G.fmt(ch.xp) + ' / ' + G.fmt(need);
@@ -172,7 +172,7 @@
     if (Game.mode !== 'play') return;
     panelId = id; forgeSel = null;
     $('panel').hidden = false;
-    if (id === 'menu' || id === 'keys' || id === 'options') Game.paused = true;
+    if (id === 'menu' || id === 'keys' || id === 'options' || id === 'creator') Game.paused = true;
     if (id !== 'keys') UI.capturing = null;
     UI.refreshPanel();
   };
@@ -343,10 +343,12 @@
       const spells = sp.join('') === '12345' ? kbd('1') + ' à ' + kbd('5') : sp.map(kbd).join(' ');
       const rows = [[kbd(In.moveLabel()) + (arrows ? ' / flèches' : ''), 'Se déplacer'], [keys('attack'), 'Attaque de base vers le curseur (maintenir)'], [spells, 'Sorts (visés au curseur)'],
         [keys('potion'), 'Boire une potion'], [keys('interact'), 'Parler, ouvrir, utiliser'], [keys('inventory'), 'Inventaire'], [keys('menu'), 'Fermer / menu']];
+      if (G.opt('creator')) rows.push([keys('creator'), 'Mode créateur']);
       return {
         title: 'Pause', sub: inD ? 'Le jeu est en pause' : 'Havre-Gris',
         body: `<div class="cols" style="grid-template-columns:300px 1fr"><div class="list"><button class="main" data-menu="resume">Reprendre</button>
           <button data-menu="keys">Touches</button><button data-menu="options">Options</button>
+          ${G.opt('creator') ? '<button data-menu="creator" class="creatorbtn">Mode créateur</button>' : ''}
           <button data-menu="title">${inD ? 'Abandonner et revenir au titre' : 'Revenir à l\'écran titre'}</button>
           ${inD ? '<p class="muted" style="font-size:15px;margin:0">Abandonner : le butin trouvé dans ce donjon est perdu (sans les autres pénalités de mort).</p>' : '<p class="muted" style="font-size:15px;margin:0">La partie est sauvegardée automatiquement en ville.</p>'}</div>
           <div><div class="sectitle">Commandes</div><div class="cmds">${rows.map(([k, t]) => `<span>${k}</span><span>${t}</span>`).join('')}</div>
@@ -360,14 +362,17 @@
       return { title: 'Options', sub: 'Le jeu est en pause', body: `<div class="row" style="margin-bottom:8px"><button data-menu="back">← Retour au menu</button></div>${UI.optionsBody()}` };
     },
   };
+  // autres panneaux (mode créateur) : ajoutés par d'autres fichiers
+  UI.PANELS = PANELS; UI.panelClick = {}; UI.panelChange = {};
 
   function msg(id, text, color) { const el = $(id); if (el) { el.textContent = text || ''; el.style.color = color || 'var(--ink)'; } }
 
   function onPanelClick(e) {
     const ch = Game.char;
     const b = e.target.closest('button');
+    if (UI.panelClick[panelId] && UI.panelClick[panelId](e)) return;
     if (panelId === 'keys' && UI.keysClick(e, () => UI.refreshPanel())) return;
-    if (b && (b.dataset.menu === 'keys' || b.dataset.menu === 'options')) { UI.openPanel(b.dataset.menu); return; }
+    if (b && (b.dataset.menu === 'keys' || b.dataset.menu === 'options' || b.dataset.menu === 'creator')) { UI.openPanel(b.dataset.menu); return; }
     if (b && b.dataset.menu === 'back') { UI.openPanel('menu'); return; }
     const cell = e.target.closest('.cell[data-ref]');
     const dun = e.target.closest('[data-dun]');

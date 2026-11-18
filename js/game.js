@@ -294,11 +294,14 @@
     const crit = o.forceCrit || p.nextCrit || Math.random() < critOf(p);
     let d = powOf(p) * mult * G.rnd(0.92, 1.08);
     if (crit) d *= 1.75;
+    if (p.isPlayer && cheat('dmg')) d *= 10;
     if (o.bonus) d *= o.bonus;
     else if (p.stealthStrike) d *= 3;
     return { d, crit };
   }
-  function isInvuln(p) { return p.invulnT > 0 || hasBuff(p, 'divin') || (p.dash && p.dash.invuln); }
+  // mode créateur : invincibilité, dégâts ×10, sorts sans recharge ni coût
+  const cheat = (k) => !!(Game.char && Game.char.cheats && Game.char.cheats[k]);
+  function isInvuln(p) { return p.invulnT > 0 || hasBuff(p, 'divin') || (p.dash && p.dash.invuln) || (p.isPlayer && cheat('god')); }
   Game.isInvuln = isInvuln;
   Game.hasBuff = hasBuff;
 
@@ -337,7 +340,7 @@
     if (!tgt || tgt.dead || tgt.dormant || tgt.hidden) return 0;
     if (tgt.faction === 'p') {
       if (tgt.isPlayer) {
-        if (isInvuln(tgt)) { if (Math.random() < 0.3) text(tgt.x, tgt.y - 40, 'Immunisé', '#c9a227', 16); return 0; }
+        if (isInvuln(tgt)) { if (!cheat('god') && Math.random() < 0.3) text(tgt.x, tgt.y - 40, 'Immunisé', '#c9a227', 16); return 0; }
         if (hasBuff(tgt, 'parade') && !o.isDot && !o.trueDmg) {
           text(tgt.x, tgt.y - 44, 'Parade !', '#c4661a', 22);
           ring(tgt.x, tgt.y - 8, 40, '#c4661a');
@@ -517,9 +520,30 @@
     Game.scene.drops.push(Object.assign({ id: G.uid(), x: tx, y: ty, t: 0 }, d));
   }
   Game.addDrop = addDrop;
+  Game.killUnit = killUnit;
+  // mode créateur : fait apparaître des monstres (ou des boss) près du joueur
+  Game.spawnMonster = function (type, n) {
+    const sc = Game.scene, p = Game.player, def = D.MONSTERS[type];
+    if (!sc || sc.kind !== 'dungeon' || !def) return 0;
+    const lvl = sc.def.lvl + 2;
+    for (let i = 0; i < n; i++) {
+      let x = p.x, y = p.y;
+      for (let k = 0; k < 40; k++) {
+        const a = Math.random() * G.TAU, d = G.rnd(130, 210), nx = p.x + Math.cos(a) * d, ny = p.y + Math.sin(a) * d;
+        if (!W.collides(sc.map, nx, ny, def.r + 4) && W.los(sc.map, p.x, p.y, nx, ny)) { x = nx; y = ny; break; }
+      }
+      const u = makeMonster(type, x, y, lvl, false);
+      u.aggro = true; u.gcd = 1;
+      if (u.boss) u.spawnedBoss = true;
+      sc.units.push(u);
+      parts(x, y - 10, 14, '#7b3fa6', 'spark', 140); ring(x, y, 50, '#7b3fa6');
+    }
+    return n;
+  };
 
   function onBossDeath(b) {
     const sc = Game.scene, m = sc.map;
+    if (b.spawnedBoss) { G.UI.toast(b.name + ' est vaincu !', '#7b3fa6', 3); ring(b.x, b.y, 180, '#c9a227', 0.6); return; } // boss invoqué en mode créateur
     m.gateLocked = false;
     sc.victory = true;
     sc.emitters = [];
@@ -579,7 +603,8 @@
     const rank = slot === 0 ? 1 : ch.abil[slot] || 0;
     if (slot > 0 && !rank) { warn(ab.name + ' : à apprendre auprès du Maître des compétences.'); return; }
     if ((p.cds[slot] || 0) > 0) return;
-    const cost = ab.cost || 0;
+    const free = cheat('nocd');
+    const cost = free ? 0 : ab.cost || 0;
     if (p.res < cost) { warn('Pas assez de ' + D.RES[D.CLASSES[ch.cls].res].name.toLowerCase() + '.'); return; }
     const c = { rk: 1 + 0.25 * (rank - 1), tx: Game.mouse.wx, ty: Game.mouse.wy };
     for (const fx of ab.fx) {
@@ -591,7 +616,7 @@
     if (hasBuff(p, 'furtif') && offensive) p.stealthStrike = true;
     for (const fx of ab.fx) execFx(p, fx, c);
     p.res -= cost;
-    const cd = ab.cd / (1 + hasteOf(p));
+    const cd = free && slot > 0 ? 0.25 : ab.cd / (1 + hasteOf(p));
     p.cds[slot] = cd; p.cdMax[slot] = cd;
     if (p.stealthStrike) { p.stealthStrike = false; p.buffs = p.buffs.filter((b) => b.id !== 'furtif'); }
     if (offensive) { p.nextCrit = false; if (sc.kind === 'dungeon') p.combatT = 0; }

@@ -217,7 +217,7 @@
       const C = D.CLASSES[c.cls];
       return `<div class="hcard sk${c.hardcore ? ' hardcore' : ''}${i === data.last ? ' lastp' : ''}">
         <canvas width="120" height="120" data-hero="${c.cls}" data-idx="${i}"></canvas>
-        <div class="hinfo"><h3>${esc(c.name)}${c.hardcore ? '<span class="hc">Hardcore</span>' : ''}${c.legend ? '<span class="legend">Légende</span>' : ''}</h3>
+        <div class="hinfo"><h3>${esc(c.name)}${c.hardcore ? '<span class="hc">Hardcore</span>' : ''}${c.legend ? '<span class="legend">Légende</span>' : ''}${c.creator ? '<span class="creator">Créateur</span>' : ''}</h3>
         <div>${C.name} · niveau ${c.lvl}</div>
         <div class="muted">${c.cleared}/15 donjons · ${c.hardcore ? 'une seule vie' : c.deaths + ' mort' + (c.deaths > 1 ? 's' : '')} · ${fmtT(c.time)}</div>
         <div class="row"><button class="main" data-play="${i}">Jouer</button><button class="danger" data-del="${i}">Supprimer</button></div></div></div>`;
@@ -353,11 +353,13 @@
 
   // ================= Options =================
   UI.optionsBody = function () {
-    return `<div class="olist">${Input.OPTIONS.map((o) => `<label class="orow"><input type="checkbox" data-opt="${o.id}" ${G.opt(o.id) ? 'checked' : ''}><span class="oswitch"></span><span><b>${o.name}</b><br><span class="muted">${o.desc}</span></span></label>`).join('')}</div>`;
+    return `<div class="olist">${Input.OPTIONS.map((o) => `<label class="orow${o.id === 'creator' ? ' ocreator' : ''}"><input type="checkbox" data-opt="${o.id}" ${G.opt(o.id) ? 'checked' : ''}><span class="oswitch"></span><span><b>${o.name}</b><br><span class="muted">${typeof o.desc === 'function' ? o.desc() : o.desc}</span></span></label>`).join('')}</div>`;
   };
   UI.optionsChange = function (e) {
     const c = e.target.closest('input[data-opt]'); if (!c) return;
     Input.setOption(c.dataset.opt, c.checked);
+    if (c.dataset.opt === 'creator' && c.checked && UI.toast) UI.toast('Mode créateur activé : touche ' + Input.label('creator') + ' en jeu, ou bouton dans la pause.', '#7b3fa6', 4);
+    if (c.dataset.opt === 'creator' && G.Game.mode === 'play') UI.refreshLabels();
   };
   UI.showOptions = function () {
     const tv = frame('options', `<header class="tvhead"><h2>Options</h2><button data-back="1">Retour (Échap)</button></header>${UI.optionsBody()}`);

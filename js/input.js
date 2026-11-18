@@ -18,12 +18,13 @@
     { id: 'potion', name: 'Boire une potion', group: 'Combat' },
     { id: 'interact', name: 'Parler, ouvrir, utiliser', group: 'Interface' },
     { id: 'inventory', name: 'Ouvrir l\'inventaire', group: 'Interface' },
+    { id: 'creator', name: 'Mode créateur', group: 'Interface' },
     { id: 'menu', name: 'Menu et fermer les fenêtres', group: 'Interface' },
   ];
   const DEFAULTS = {
     up: ['KeyW', 'ArrowUp'], down: ['KeyS', 'ArrowDown'], left: ['KeyA', 'ArrowLeft'], right: ['KeyD', 'ArrowRight'],
     attack: ['Mouse0', null], s1: ['Digit1', 'Numpad1'], s2: ['Digit2', 'Numpad2'], s3: ['Digit3', 'Numpad3'], s4: ['Digit4', 'Numpad4'], s5: ['Digit5', 'Numpad5'],
-    potion: ['KeyR', null], interact: ['KeyE', null], inventory: ['Tab', 'KeyI'], menu: ['Escape', null],
+    potion: ['KeyR', null], interact: ['KeyE', null], inventory: ['Tab', 'KeyI'], creator: ['KeyC', null], menu: ['Escape', null],
   };
   Input.binds = JSON.parse(JSON.stringify(DEFAULTS));
 
@@ -106,7 +107,7 @@
   Input.missing = () => Input.ACTIONS.filter((a) => !Input.codes(a.id).length).map((a) => a.name);
 
   // ---------- Options ----------
-  const OPT_DEFAULTS = { shake: true, dmgNums: true, arrow: true, light: true };
+  const OPT_DEFAULTS = { shake: true, dmgNums: true, arrow: true, light: true, creator: false };
   G.Options = Object.assign({}, OPT_DEFAULTS);
   G.opt = (k) => G.Options[k] !== false;
   Input.OPTIONS = [
@@ -114,6 +115,7 @@
     { id: 'dmgNums', name: 'Chiffres de dégâts', desc: 'Les dégâts infligés et reçus s\'affichent au-dessus des personnages.' },
     { id: 'arrow', name: 'Flèche de guidage', desc: 'Une flèche jaune indique le prochain objectif.' },
     { id: 'light', name: 'Éclairage des donjons', desc: 'Obscurité et lueurs des torches. À désactiver si le jeu rame.' },
+    { id: 'creator', name: 'Mode créateur', desc: () => 'Accès à tous les objets, à tous les donjons, au niveau et à l\'or au maximum, à l\'invincibilité… En jeu : touche ' + Input.label('creator') + ' ou bouton dans la pause. Les héros qui l\'utilisent portent le badge « Créateur ».' },
   ];
   Input.setOption = function (id, v) { G.Options[id] = !!v; Input.save(); };
 
@@ -125,6 +127,8 @@
       if (Array.isArray(b[a.id])) out[a.id] = [b[a.id][0] || null, b[a.id][1] || null];
     });
     out.menu[0] = 'Escape';
+    const used = new Set();
+    Input.ACTIONS.forEach((a) => out[a.id].forEach((c, i) => { if (!c) return; if (used.has(c)) out[a.id][i] = null; else used.add(c); }));
     return out;
   }
   Input.load = function () {

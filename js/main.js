@@ -125,7 +125,7 @@
     const Game = G.Game, UI = G.UI;
     if (Game.mode !== 'play' || !$('screen').hidden) return;
     const panel = UI.currentPanel();
-    const blocking = panel === 'menu' || panel === 'keys' || panel === 'options';
+    const blocking = panel === 'menu' || panel === 'keys' || panel === 'options' || panel === 'creator';
     for (const a of G.Input.actionsFor(code)) {
       const m = /^s([1-5])$/.exec(a);
       if (m && !blocking) Game.useAbility(+m[1]);
@@ -140,11 +140,12 @@
     const Game = G.Game, UI = G.UI, Input = G.Input;
     Input.learn(e);
     if (UI.capturing) { e.preventDefault(); UI.captureKey(e.code); return; }
-    const typing = e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA');
+    const typing = e.target && ['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName);
     if (typing) {
-      if (e.key === 'Enter') { const b = $('cgo'); if (b) b.click(); }
-      else if (e.code === 'Escape' && Game.mode === 'title') { e.target.blur(); UI.titleKey(e); }
-      return;
+      if (e.key === 'Enter' && e.target.tagName === 'INPUT') { const b = $('cgo') || (e.target.dataset.enter && $(e.target.dataset.enter)); if (b) b.click(); }
+      if (e.code !== 'Escape') return;
+      e.target.blur();
+      if (Game.mode === 'title') { UI.titleKey(e); return; }
     }
     if (e.code === 'Tab') e.preventDefault();
     if (Game.mode === 'title') { UI.titleKey(e); return; }
@@ -163,7 +164,12 @@
     if (acts.includes('inventory')) {
       e.preventDefault();
       if (UI.currentPanel() === 'inventory') UI.closePanel();
-      else if (Game.mode === 'play' && !['menu', 'keys', 'options'].includes(UI.currentPanel())) UI.openPanel('inventory');
+      else if (Game.mode === 'play' && !['menu', 'keys', 'options', 'creator'].includes(UI.currentPanel())) UI.openPanel('inventory');
+      return;
+    }
+    if (acts.includes('creator') && G.opt('creator') && Game.mode === 'play') {
+      e.preventDefault();
+      if (UI.currentPanel() === 'creator') UI.closePanel(); else UI.openPanel('creator');
       return;
     }
     if (acts.length || NO_SCROLL.includes(e.code)) e.preventDefault();

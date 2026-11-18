@@ -10,6 +10,7 @@ Le Roi Cendré a brisé le Sceau des Quinze. Ses quinze lieutenants gardent chac
 - **Menu de départ animé** : Havre-Gris au soleil couchant, votre dernier héros debout sur son rocher. Continuer, choisir un héros, nouveau héros, touches, options, cimetière des héros (souris ou flèches + Entrée).
 - **Touches configurables** : deux touches par action (clavier ou bouton de souris), depuis l'écran titre ou le menu pause. Les conflits sont signalés, la barre d'action, l'aide et le tutoriel affichent vos touches.
 - **Options** : tremblement de l'écran, chiffres de dégâts, flèche de guidage, éclairage des donjons.
+- **Mode créateur** (à activer dans les Options, puis touche C en jeu ou bouton dans la pause) : tous les objets du jeu (60 modèles, toutes raretés, niveau 1 à 60, forge +0 à +10, nom légendaire au choix), niveau, or, sorts et talents au maximum, invincibilité, dégâts ×10, sorts sans recharge, les 15 donjons ouverts, téléportation au boss, monstres et boss à volonté. Les héros qui s'en servent portent le badge « Créateur ».
 - **Tutoriel guidé** avec la sergente Brenna, dans le camp des recrues devant la porte de Havre-Gris (il peut être passé).
 - **Havre-Gris** : forge (amélioration jusqu'à +10), boutique, académie (sorts et talents), garnison (quêtes), portail des donjons, mannequins d'entraînement, habitants et animaux.
 - **Les 15 donjons au plan fixe**, chacun avec son boss à plusieurs phases :
@@ -44,6 +45,7 @@ Touches par défaut (modifiables dans « Touches », sur l'écran titre ou dans 
 | 1 à 5 (ou pavé numérique) | Sorts |
 | R | Potion |
 | E | Parler, ouvrir, utiliser |
+| C | Mode créateur (s'il est activé dans les Options) |
 | TAB ou I | Inventaire |
 | Échap | Fermer / menu |
 
@@ -74,6 +76,7 @@ Puis ouvrir http://localhost:8000 dans un navigateur.
 | `js/input.js` | Touches configurables, noms des touches selon le clavier, options |
 | `js/ui.js` | Interface en jeu : HUD, inventaire, boutiques, quêtes, menu pause |
 | `js/menu.js` | Menu de départ animé, héros, création, touches, options, cimetière |
+| `js/creator.js` | Mode créateur : tous les objets, héros au maximum, donjons, monstres à volonté |
 | `js/main.js` | Démarrage, sauvegarde, clavier et souris |
 
 ## Prochaines étapes
