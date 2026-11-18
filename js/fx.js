@@ -12,8 +12,8 @@
     sc.fxT = (sc.fxT || 0) + dt;
     const amb = sc.ambient;
     const kind = sc.kind === 'town' || sc.kind === 'tuto' ? 'leaf' : th.ambient;
-    const max = kind === 'leaf' ? 14 : kind === 'snow' ? 90 : 40;
-    const rate = kind === 'leaf' ? 3 : kind === 'snow' ? 45 : 14;
+    const max = kind === 'leaf' ? 14 : kind === 'snow' ? 90 : kind === 'sand' ? 60 : kind === 'ash' ? 70 : 40;
+    const rate = kind === 'leaf' ? 3 : kind === 'snow' ? 45 : kind === 'sand' ? 24 : kind === 'ash' ? 26 : 14;
     for (let n = 0; n < (kind === 'snow' ? 2 : 1); n++) if (kind && amb.filter((a) => a.kind === kind).length < max && Math.random() < dt * rate) {
       const x = cam.x + Math.random() * Game.W, y = cam.y + Math.random() * Game.H;
       const a = { kind, x, y, t: 0, life: 4 + Math.random() * 4, seed: Math.random() * 100 };
@@ -25,6 +25,11 @@
       else if (kind === 'sparkle') { a.vx = 0; a.vy = -4; a.life = 1.2 + Math.random() * 1.6; a.col = Math.random() < 0.5 ? '#bff0ff' : '#e4c8ff'; }
       else if (kind === 'snow') { a.y = cam.y - 10; a.x = cam.x - 100 + Math.random() * (Game.W + 200); a.vx = G.rnd(-12, 12); a.vy = G.rnd(40, 70); a.life = 14; a.r = 1 + Math.random() * 1.8; }
       else if (kind === 'bubble') { a.vx = G.rnd(-4, 4); a.vy = G.rnd(-32, -18); a.life = 3 + Math.random() * 2; a.r = 1.5 + Math.random() * 2.5; }
+      else if (kind === 'sand') { a.x = cam.x - 20 + Math.random() * (Game.W + 40); a.vx = G.rnd(40, 90); a.vy = G.rnd(-6, 10); a.life = 3 + Math.random() * 2; a.l = 3 + Math.random() * 6; }
+      else if (kind === 'frost') { a.vx = G.rnd(-6, 6); a.vy = G.rnd(4, 12); a.life = 2 + Math.random() * 2; a.col = Math.random() < 0.5 ? '#ffffff' : '#bfe4f4'; }
+      else if (kind === 'dreamdust') { a.vx = G.rnd(-8, 8); a.vy = G.rnd(-14, -4); a.life = 4 + Math.random() * 3; a.col = G.pick(['#f0a0e0', '#9fd0f0', '#f2e04a', '#c9a0f0']); }
+      else if (kind === 'voidmote') { a.vx = G.rnd(-5, 5); a.vy = G.rnd(-22, -8); a.life = 3 + Math.random() * 3; a.star = Math.random() < 0.3; }
+      else if (kind === 'ash') { a.y = cam.y - 10; a.x = cam.x - 60 + Math.random() * (Game.W + 120); a.vx = G.rnd(-10, 14); a.vy = G.rnd(22, 40); a.life = 16; a.rot = Math.random() * 6; a.ember = Math.random() < 0.18; }
       amb.push(a);
     }
     // fumée des cheminées et fontaine
@@ -45,11 +50,23 @@
       sc.birds.forEach((b) => { b.x += b.vx * dt; b.ph += dt * 10; });
       sc.birds = sc.birds.filter((b) => b.x > cam.x - 200 && b.x < cam.x + Game.W + 200);
     }
+    // bulles de lave
+    if (sc.kind === 'dungeon') {
+      if (sc.map.hasLava == null) { sc.map.hasLava = false; for (let i = 0; i < sc.map.tiles.length; i++) if (sc.map.tiles[i] === 5) { sc.map.hasLava = true; break; } }
+      if (sc.map.hasLava) for (let n = 0; n < 3; n++) {
+        const x = cam.x + Math.random() * Game.W, y = cam.y + Math.random() * Game.H;
+        if (G.W.lavaAt(sc.map, x, y) && Math.random() < dt * 30) amb.push({ kind: 'lavapop', x, y, vx: 0, vy: -6, t: 0, life: 0.7, seed: Math.random() * 100 });
+      }
+    }
     const w = sc.wind && sc.wind.t >= 0 ? sc.wind : null;
-    if (w && Math.random() < dt * 30) amb.push({ kind: 'gust', x: cam.x + Math.random() * Game.W, y: cam.y + Math.random() * Game.H, vx: Math.cos(w.ang) * 600, vy: Math.sin(w.ang) * 600, t: 0, life: 0.35, seed: 0 });
+    const sandy = th.ambient === 'sand';
+    if (w && Math.random() < dt * (sandy ? 60 : 30)) amb.push({ kind: 'gust', x: cam.x + Math.random() * Game.W, y: cam.y + Math.random() * Game.H, vx: Math.cos(w.ang) * 600, vy: Math.sin(w.ang) * 600, t: 0, life: 0.35, seed: 0, col: sandy ? '#b8925a' : null });
+    if (sc.storm && Math.random() < dt * 40) amb.push({ kind: 'sand', x: cam.x + Math.random() * Game.W, y: cam.y + Math.random() * Game.H, vx: G.rnd(120, 220) * (w ? Math.sign(Math.cos(w.ang)) || 1 : 1), vy: w ? Math.sin(w.ang) * 160 : 0, t: 0, life: 1.4, l: 6 + Math.random() * 8, seed: 0 });
     for (const a of amb) {
       a.t += dt;
-      if (w && (a.kind === 'snow' || a.kind === 'leaf')) { a.vx += Math.cos(w.ang) * 220 * dt; a.vy += Math.sin(w.ang) * 220 * dt; }
+      if (w && (a.kind === 'snow' || a.kind === 'leaf' || a.kind === 'sand' || a.kind === 'ash')) { a.vx += Math.cos(w.ang) * 220 * dt; a.vy += Math.sin(w.ang) * 220 * dt; }
+      if (a.kind === 'ash') { a.rot += dt * 1.5; a.vx += Math.sin(a.t * 1.3 + a.seed) * 10 * dt; }
+      if (a.kind === 'dreamdust' || a.kind === 'voidmote') a.vx += Math.sin(a.t * 2 + a.seed) * 6 * dt;
       if (a.kind === 'bubble') a.vx = Math.sin(a.t * 4 + a.seed) * 8;
       if (a.kind === 'firefly') { a.vx += G.rnd(-40, 40) * dt; a.vy += G.rnd(-40, 40) * dt; a.vx *= 0.98; a.vy *= 0.98; }
       if (a.kind === 'page' || a.kind === 'leaf') { a.rot += dt * 2; a.vx += Math.sin(a.t * 2 + a.seed) * 12 * dt; }
@@ -102,14 +119,17 @@
     sc.units.forEach((u) => !u.dead && !u.isPlayer && !u.dormant && !u.hidden && vis(u.x, u.y, 40) && R.hpBar(g, u));
     sc.projs.forEach((p) => R.proj(g, p));
     drawParts(g, sc);
-    sc.ambient.forEach((a) => (a.kind === 'dust' || a.kind === 'page' || a.kind === 'leaf' || a.kind === 'smoke' || a.kind === 'bubble' || a.kind === 'snow' || a.kind === 'gust') && drawAmbient(g, a));
+    sc.ambient.forEach((a) => (a.kind === 'dust' || a.kind === 'page' || a.kind === 'leaf' || a.kind === 'smoke' || a.kind === 'bubble' || a.kind === 'snow' || a.kind === 'gust' || a.kind === 'sand' || a.kind === 'ash') && drawAmbient(g, a));
     g.restore();
 
     // ----- éclairage, puis brouillard d'exploration (le papier non dessiné reste clair) -----
-    if (th.dark > 0 && G.opt('light')) light(g, sc, sx, sy, th.dark, t);
+    // éclipse : la lumière s'éteint (même si l'éclairage est désactivé, c'est un piège)
+    const ecl = sc.eclipse ? Math.max(0, Math.min(1, sc.eclipse.t * 2, (sc.eclipse.dur - sc.eclipse.t) * 2)) : 0;
+    const dark = Math.max(th.dark, th.dark + (0.94 - th.dark) * ecl);
+    if ((dark > 0 && G.opt('light')) || ecl > 0) light(g, sc, sx, sy, dark, t, ecl);
     g.save();
     g.translate(-sx, -sy);
-    sc.ambient.forEach((a) => (a.kind === 'firefly' || a.kind === 'ember' || a.kind === 'sparkle') && drawAmbient(g, a));
+    sc.ambient.forEach((a) => (a.kind === 'firefly' || a.kind === 'ember' || a.kind === 'sparkle' || a.kind === 'frost' || a.kind === 'dreamdust' || a.kind === 'voidmote' || a.kind === 'lavapop') && drawAmbient(g, a));
     if (m.fogCanvas) {
       g.imageSmoothingEnabled = true;
       const fx = Math.max(0, Math.floor(sx / T) - 1), fy = Math.max(0, Math.floor(sy / T) - 1);
@@ -140,6 +160,15 @@
       vg.fillStyle = gr; vg.fillRect(0, 0, Game.W, Game.H);
     }
     g.drawImage(vignette, 0, 0);
+    // tempête de sable : voile jaune
+    if (sc.storm) { const k = Math.min(1, sc.storm.t * 1.5, (sc.storm.dur - sc.storm.t) * 1.5); g.globalAlpha = 0.28 * k; g.fillStyle = '#d6b27a'; g.fillRect(0, 0, Game.W, Game.H); g.globalAlpha = 1; }
+    // cauchemar : commandes inversées
+    if (sc.invert && p) {
+      const warnT = sc.invert.t < 0, k = warnT ? 0.5 + 0.5 * Math.sin(t * 14) : Math.min(1, (sc.invert.dur - sc.invert.t) * 2);
+      g.globalAlpha = 0.35 * k; g.strokeStyle = '#7b3fa6'; g.lineWidth = 46; g.strokeRect(0, 0, Game.W, Game.H); g.globalAlpha = 1;
+      S.begin(9);
+      S.text(g, warnT ? 'Cauchemar… vos commandes vont s\'inverser !' : 'Commandes inversées : ' + Math.ceil(sc.invert.dur - sc.invert.t) + ' s', Game.W / 2, 92, 26, '#5a2a7a', 'center', 'rgba(236,224,196,0.9)');
+    }
     if (p && !p.dead && p.hp / p.maxHp < 0.3 && sc.kind === 'dungeon') {
       g.globalAlpha = (0.3 - p.hp / p.maxHp) * 1.6 * (0.7 + 0.3 * Math.sin(t * 6));
       g.strokeStyle = '#9b2c20'; g.lineWidth = 40; g.strokeRect(0, 0, Game.W, Game.H); g.globalAlpha = 1;
@@ -149,27 +178,29 @@
   // ================= Lumière =================
   // Éclairage léger : un seul dégradé d'obscurité centré sur le joueur, puis des halos chauds additifs
   // (aucune toile intermédiaire : rapide même sans carte graphique)
-  function light(g, sc, sx, sy, dark, t) {
+  const SOFT = ['crystal', 'vein', 'crystalsmall', 'runes', 'glowshroom', 'lava', 'voidcrystal', 'starshard', 'dreamflower'];
+  function light(g, sc, sx, sy, dark, t, ecl) {
+    ecl = ecl || 0;
     const lights = [];
     const add = (x, y, r, i, color) => { if (x > sx - r && x < sx + Game.W + r && y > sy - r && y < sy + Game.H + r) lights.push([x - sx, y - sy, r, i, color]); };
     const p = Game.player, m = sc.map;
     const px = p ? p.x - sx : Game.W / 2, py = p ? p.y - 10 - sy : Game.H / 2;
-    const gr = g.createRadialGradient(px, py, 70, px, py, 560);
+    const gr = g.createRadialGradient(px, py, 70 * (1 - 0.35 * ecl), px, py, 560 * (1 - 0.5 * ecl));
     gr.addColorStop(0, 'rgba(14,9,5,0)');
     gr.addColorStop(0.4, `rgba(14,9,5,${(dark * 0.45).toFixed(3)})`);
     gr.addColorStop(1, `rgba(14,9,5,${dark.toFixed(3)})`);
     g.fillStyle = gr; g.fillRect(0, 0, Game.W, Game.H);
     m.lights.forEach((L) => {
-      const f = L.flick ? 0.9 + 0.07 * Math.sin(t * 11 + L.x) + 0.05 * Math.sin(t * 23 + L.y) : 1;
-      const soft = L.kind === 'crystal' || L.kind === 'vein' || L.kind === 'crystalsmall' || L.kind === 'runes' || L.kind === 'glowshroom';
-      add(L.x, L.y, L.r * f * (soft ? 0.8 : 1), soft ? 0.38 : 1, L.color || '#f2c46b');
+      const f = L.flick ? 0.9 + 0.07 * Math.sin(t * 11 + L.x) + 0.05 * Math.sin(t * 23 + L.y) : L.kind === 'lava' ? 0.88 + 0.12 * Math.sin(t * 1.7 + L.x * 0.05) : 1;
+      const soft = SOFT.includes(L.kind);
+      add(L.x, L.y, L.r * f * (soft ? 0.8 : 1), (soft ? 0.38 : 1) * (1 - 0.65 * ecl), L.color || '#f2c46b');
     });
     sc.units.forEach((u) => { if (!u.dead && !u.hidden && u.def && u.def.glow) add(u.x, u.y - 16, u.boss ? 180 : 110, 0.9, u.def.glow); });
     sc.units.forEach((u) => { if (u.minion && !u.dead) add(u.x, u.y - 10, 80, 0.6, '#5bd04a'); });
     sc.projs.forEach((pr) => add(pr.x, pr.y, 60, 0.7, pr.color || '#f2c46b'));
     sc.parts.forEach((q) => { if (q.kind === 'ring' && q.r > 40) add(q.x, q.y, q.r * 1.2, 0.8 * (1 - q.t / q.life), q.color); });
     sc.portals.forEach((pt) => add(pt.x, pt.y, 160, 0.9, pt.victory ? '#c9a227' : '#7b3fa6'));
-    sc.zones.forEach((z) => add(z.x, z.y, z.r * 1.1, 0.5, z.color || '#c9a227'));
+    sc.zones.forEach((z) => { if (z.kind !== 'sand' && z.kind !== 'void') add(z.x, z.y, z.r * 1.1, z.kind === 'sleep' ? 0.3 : 0.5, z.color || '#c9a227'); });
     sc.drops.forEach((d) => { if (d.kind === 'item' && d.item.rarity >= 3) add(d.x, d.y, 70, 0.6, D.RARITY[d.item.rarity].color); });
     g.globalCompositeOperation = 'lighter';
     for (const [x, y, r, i, color] of lights) {
@@ -253,7 +284,7 @@
       case 'bubble': g.globalAlpha = 0.7 * life; g.strokeStyle = '#d8f4f8'; g.lineWidth = 1; g.beginPath(); g.arc(a.x, a.y, a.r, 0, G.TAU); g.stroke(); break;
       case 'gust': {
         const k = a.t / a.life;
-        g.globalAlpha = 0.55 * (1 - k); g.strokeStyle = '#8fa6bc'; g.lineWidth = 1.4;
+        g.globalAlpha = 0.55 * (1 - k); g.strokeStyle = a.col || '#8fa6bc'; g.lineWidth = 1.4;
         const dx = a.vx * 0.06, dy = a.vy * 0.06;
         g.beginPath(); g.moveTo(a.x, a.y); g.quadraticCurveTo(a.x + dx * 0.5 - dy * 0.1, a.y + dy * 0.5 + dx * 0.1, a.x + dx, a.y + dy); g.stroke();
         break;
@@ -264,6 +295,38 @@
         else { g.fillStyle = a.col; g.beginPath(); g.ellipse(0, 0, 4, 2, 0, 0, G.TAU); g.fill(); }
         g.restore();
         break;
+      case 'sand': g.globalAlpha = 0.55 * life; g.strokeStyle = '#a07a42'; g.lineWidth = 1.2; g.beginPath(); g.moveTo(a.x, a.y); g.lineTo(a.x - a.l, a.y - (a.vy / (Math.abs(a.vx) + 1)) * a.l); g.stroke(); break;
+      case 'frost': {
+        const k = Math.sin((a.t / a.life) * Math.PI);
+        g.globalAlpha = 0.8 * k; g.fillStyle = a.col; g.fillRect(a.x - 1, a.y - 1, 2, 2);
+        if (k > 0.8) { g.strokeStyle = a.col; g.lineWidth = 0.8; g.beginPath(); g.moveTo(a.x - 3, a.y); g.lineTo(a.x + 3, a.y); g.moveTo(a.x, a.y - 3); g.lineTo(a.x, a.y + 3); g.stroke(); }
+        break;
+      }
+      case 'dreamdust': {
+        const k = Math.sin((a.t / a.life) * Math.PI);
+        g.globalAlpha = 0.3 * k; g.fillStyle = a.col; g.beginPath(); g.arc(a.x, a.y, 5, 0, G.TAU); g.fill();
+        g.globalAlpha = 0.9 * k; g.fillRect(a.x - 1.2, a.y - 1.2, 2.4, 2.4);
+        break;
+      }
+      case 'voidmote': {
+        const k = Math.sin((a.t / a.life) * Math.PI);
+        if (a.star) { g.globalAlpha = k; g.fillStyle = '#ffffff'; g.fillRect(a.x - 0.8, a.y - 0.8, 1.6, 1.6); }
+        else { g.globalAlpha = 0.6 * k; g.fillStyle = '#2a1f3a'; g.beginPath(); g.arc(a.x, a.y, 2.2, 0, G.TAU); g.fill(); g.strokeStyle = '#9b6fe0'; g.lineWidth = 0.6; g.stroke(); }
+        break;
+      }
+      case 'ash':
+        g.save(); g.translate(a.x, a.y); g.rotate(a.rot); g.globalAlpha = 0.75 * life;
+        if (a.ember) { g.fillStyle = a.t % 0.4 < 0.2 ? '#ffb04a' : '#f0782a'; g.fillRect(-1.2, -1.2, 2.4, 2.4); }
+        else { g.fillStyle = '#8a847a'; g.beginPath(); g.ellipse(0, 0, 2.6, 1.4, 0, 0, G.TAU); g.fill(); }
+        g.restore();
+        break;
+      case 'lavapop': {
+        const k = a.t / a.life;
+        g.globalAlpha = 1 - k; g.strokeStyle = '#ffd36a'; g.lineWidth = 1.2;
+        g.beginPath(); g.arc(a.x, a.y, 1.5 + k * 5, Math.PI, G.TAU); g.stroke();
+        if (k > 0.5) { g.fillStyle = '#ffb04a'; g.fillRect(a.x - 3 - k * 4, a.y - k * 8, 1.6, 1.6); g.fillRect(a.x + 2 + k * 4, a.y - k * 7, 1.6, 1.6); }
+        break;
+      }
       case 'smoke': {
         const k = a.t / a.life;
         g.globalAlpha = 0.35 * (1 - k); S.begin(Math.floor(a.seed * 1000));

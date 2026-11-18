@@ -156,7 +156,7 @@
   UI.showTitle = function () {
     const data = G.Save.data, ch = lastHero();
     items = [];
-    if (ch) items.push({ id: 'continue', t: 'Continuer', who: ch.name, s: `Reprendre avec ${ch.name} : ${D.CLASSES[ch.cls].name.toLowerCase()} niveau ${ch.lvl}, ${ch.cleared}/15 donjons${ch.hardcore ? ', Hardcore' : ''}.` });
+    if (ch) items.push({ id: 'continue', t: 'Continuer', who: ch.name, s: `Reprendre avec ${ch.name} : ${D.CLASSES[ch.cls].name.toLowerCase()} niveau ${ch.lvl}, ${ch.cleared}/15 donjons${ch.hardcore ? ', Hardcore' : ''}${ch.legend ? ', Légende de Valdorne' : ''}.` });
     if (data.chars.length) items.push({ id: 'heroes', t: 'Choisir un héros', s: `Vos ${data.chars.length} héros : jouer, comparer ou supprimer.` });
     items.push({ id: 'new', t: 'Nouveau héros', s: data.chars.length >= 6 ? 'Maximum atteint : 6 héros. Supprimez-en un pour en créer un autre.' : '10 classes, un tutoriel avec la sergente Brenna, et le mode Hardcore pour les plus courageux.', off: data.chars.length >= 6 });
     items.push({ id: 'keys', t: 'Touches', s: 'Changer les commandes du clavier et de la souris.' });
@@ -217,7 +217,7 @@
       const C = D.CLASSES[c.cls];
       return `<div class="hcard sk${c.hardcore ? ' hardcore' : ''}${i === data.last ? ' lastp' : ''}">
         <canvas width="120" height="120" data-hero="${c.cls}" data-idx="${i}"></canvas>
-        <div class="hinfo"><h3>${esc(c.name)}${c.hardcore ? '<span class="hc">Hardcore</span>' : ''}</h3>
+        <div class="hinfo"><h3>${esc(c.name)}${c.hardcore ? '<span class="hc">Hardcore</span>' : ''}${c.legend ? '<span class="legend">Légende</span>' : ''}</h3>
         <div>${C.name} · niveau ${c.lvl}</div>
         <div class="muted">${c.cleared}/15 donjons · ${c.hardcore ? 'une seule vie' : c.deaths + ' mort' + (c.deaths > 1 ? 's' : '')} · ${fmtT(c.time)}</div>
         <div class="row"><button class="main" data-play="${i}">Jouer</button><button class="danger" data-del="${i}">Supprimer</button></div></div></div>`;

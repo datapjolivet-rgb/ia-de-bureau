@@ -337,6 +337,7 @@
     let alpha = 1;
     if (u.stealth) alpha = 0.35;
     if (u.minion) alpha = 0.85;
+    if (u.def && u.def.shade && !u.minion && G.Game.player) { const d = G.dist(u, G.Game.player); alpha = d > 170 ? 0.14 : d > 110 ? 0.45 : 0.85; }
     g.globalAlpha = alpha;
     if (u.elite && !u.minion) {
       g.globalAlpha = 0.5 * alpha; S.circle(g, u.x, u.y + 2, u.r + 8, { ry: (u.r + 8) * 0.4, stroke: '#c9a227', w: 2, single: true }); g.globalAlpha = alpha;
@@ -361,6 +362,10 @@
       for (let i = 0; i < 3; i++) S.text(g, u.sleep ? 'z' : '*', u.x + Math.cos(t + i * 2.1) * 10, u.y - u.r * 2.1 + Math.sin(t + i * 2.1) * 3, 16, '#c9a227', 'center', '#2b2118');
     }
     if (u.shield > 0) { g.globalAlpha = 0.35; S.circle(g, u.x, u.y - 8, u.r + 10, { stroke: '#6fb1d9', w: 2.5, single: true }); g.globalAlpha = 1; }
+    if (u.frozenT > 0 && u.stunT > 0) {
+      g.globalAlpha = 0.55; S.rect(g, u.x - u.r - 5, u.y - u.r * 2.6, u.r * 2 + 10, u.r * 2.9, { fill: '#cfe7f5', fillA: 0.8, stroke: '#6f9ac0', w: 1.6 });
+      S.line(g, u.x - u.r, u.y - u.r * 2.2, u.x - u.r + 8, u.y - u.r * 2.2 + 10, 1.2, '#ffffff', 0.3, 1); g.globalAlpha = 1;
+    }
     if (u.shielded) {
       const t = G.Game.time;
       g.globalAlpha = 0.18 + 0.08 * Math.sin(t * 5); g.fillStyle = '#e2c043';
@@ -434,6 +439,12 @@
       case 'bomb':
         S.circle(g, p.x, p.y, 6, { fill: '#2b2118', w: 1 });
         break;
+      case 'card':
+        g.save(); g.translate(p.x, p.y); g.rotate(G.Game.time * 12 + p.id);
+        S.rect(g, -5, -7, 10, 14, { fill: '#f7f2e6', w: 1 });
+        g.fillStyle = p.color; g.beginPath(); g.moveTo(0, -4); g.lineTo(3, 0); g.lineTo(0, 4); g.lineTo(-3, 0); g.closePath(); g.fill();
+        g.restore();
+        break;
       default:
         g.globalAlpha = 0.3; g.fillStyle = p.color; g.beginPath(); g.arc(p.x, p.y, p.r * 2, 0, G.TAU); g.fill(); g.globalAlpha = 1;
         S.circle(g, p.x, p.y, p.r, { fill: p.color, w: 1.1 });
@@ -476,7 +487,25 @@
     }
     g.restore();
     g.globalAlpha = 1;
+    if (h.drop && p < 1) dropFx(g, h, p);
   };
+  // stalactite, météore ou braise qui tombe du ciel sur la zone annoncée
+  function dropFx(g, h, p) {
+    const k = p * p, y = h.y - (1 - k) * 260, x = h.x + (1 - k) * 30, s = 0.6 + k * 0.6;
+    g.globalAlpha = 0.25 + 0.4 * k; g.fillStyle = '#1d1610';
+    g.beginPath(); g.ellipse(h.x, h.y, h.r * 0.35 * (0.4 + k), h.r * 0.2 * (0.4 + k), 0, 0, G.TAU); g.fill();
+    g.globalAlpha = 1;
+    if (h.drop === 'icicle') {
+      S.poly(g, [[x - 7 * s, y - 26 * s], [x + 7 * s, y - 26 * s], [x, y]], { fill: '#cfe7f5', w: 1.3, over: 1 });
+      S.line(g, x - 2 * s, y - 24 * s, x, y - 6 * s, 1, '#ffffff', 0.3, 1);
+    } else {
+      const ash = h.drop === 'ash';
+      g.globalAlpha = 0.5; g.strokeStyle = ash ? '#9a948a' : '#f2a03a'; g.lineWidth = 4 * s; g.lineCap = 'round';
+      g.beginPath(); g.moveTo(x + 14 * s, y - 34 * s); g.lineTo(x, y); g.stroke(); g.globalAlpha = 1;
+      S.circle(g, x, y, (ash ? 6 : 9) * s, { fill: ash ? '#5a524a' : '#c4461d', w: 1.2 });
+      S.circle(g, x - 2 * s, y - 2 * s, (ash ? 2.5 : 4) * s, { fill: '#ffb04a', w: 0.6, single: true });
+    }
+  }
 
   R.zone = function (g, z) {
     S.begin(z.id);
@@ -502,6 +531,7 @@
       g.restore(); g.globalAlpha = 1;
       return;
     }
+    if (ZONE_LOOK[z.kind]) { ZONE_LOOK[z.kind](g, z); return; }
     const a = Math.min(1, z.t * 3, (z.dur - z.t) * 3);
     g.save();
     g.globalAlpha = 0.18 * a; g.fillStyle = z.color;
@@ -512,6 +542,79 @@
     g.globalAlpha = 0.35 * a;
     S.hatchArea(g, z.x - z.r, z.y - z.r, z.r * 2, z.r * 2, { sp: 9, ang: 0.6, c: z.color, a: 0.5, w: 1 });
     g.restore(); g.globalAlpha = 1;
+  };
+
+  const zoneAlpha = (z) => Math.min(1, z.t * 3, (z.dur - z.t) * 3) * (z.warm && z.t < z.warm ? 0.4 : 1);
+  const ZONE_LOOK = {
+    lava(g, z) {
+      const a = zoneAlpha(z), t = G.Game.time;
+      g.save();
+      g.globalAlpha = 0.75 * a; g.fillStyle = '#c4461d';
+      g.beginPath(); g.ellipse(z.x, z.y, z.r, z.r * 0.72, 0, 0, G.TAU); g.fill();
+      g.globalAlpha = 0.85 * a; g.fillStyle = '#f2a03a'; S.blobPath(g, z.x, z.y, z.r * 0.62, z.r * 0.42, 3); g.fill();
+      for (let i = 0; i < 3; i++) {
+        const ph = (t * 0.9 + i * 0.37 + z.id * 0.13) % 1, bx = z.x + Math.cos(i * 2.1 + z.id) * z.r * 0.45, by = z.y + Math.sin(i * 2.1 + z.id) * z.r * 0.3;
+        g.globalAlpha = a * (1 - ph); g.strokeStyle = '#ffd36a'; g.lineWidth = 1.2; g.beginPath(); g.arc(bx, by, 2 + ph * 5, 0, G.TAU); g.stroke();
+      }
+      g.globalAlpha = 0.9 * a; S.circle(g, z.x, z.y, z.r, { ry: z.r * 0.72, stroke: '#4a2014', w: 1.6, single: true });
+      g.restore(); g.globalAlpha = 1;
+    },
+    sand(g, z) {
+      const a = zoneAlpha(z), t = G.Game.time;
+      g.save();
+      g.globalAlpha = 0.28 * a; g.fillStyle = '#a07a42';
+      g.beginPath(); g.ellipse(z.x, z.y, z.r, z.r * 0.72, 0, 0, G.TAU); g.fill();
+      g.strokeStyle = '#7a5a2a'; g.lineWidth = 1.4;
+      for (let k = 0; k < 3; k++) {
+        g.globalAlpha = 0.6 * a; g.setLineDash([3, 5]); g.beginPath();
+        for (let i = 0; i <= 22; i++) {
+          const f = i / 22, rad = z.r * (1 - f * 0.9), ang = t * 1.4 + f * 5 + (k * G.TAU) / 3;
+          const px = z.x + Math.cos(ang) * rad, py = z.y + Math.sin(ang) * rad * 0.72;
+          i ? g.lineTo(px, py) : g.moveTo(px, py);
+        }
+        g.stroke();
+      }
+      g.setLineDash([]);
+      g.globalAlpha = 0.7 * a; S.circle(g, z.x, z.y, z.r, { ry: z.r * 0.72, stroke: '#7a5a2a', w: 1.3, single: true });
+      g.restore(); g.globalAlpha = 1;
+    },
+    sleep(g, z) {
+      const a = zoneAlpha(z), t = G.Game.time;
+      g.save();
+      for (let k = 0; k < 4; k++) {
+        const ox = Math.cos(t * 0.6 + k * 1.7 + z.id) * z.r * 0.25, oy = Math.sin(t * 0.5 + k * 2.3) * z.r * 0.15;
+        g.globalAlpha = 0.13 * a; g.fillStyle = k % 2 ? '#9c7cc4' : '#c9a0f0';
+        g.beginPath(); g.ellipse(z.x + ox, z.y + oy, z.r * (0.75 + 0.1 * k), z.r * 0.55, 0, 0, G.TAU); g.fill();
+      }
+      for (let i = 0; i < 3; i++) {
+        const ph = (t * 0.4 + i / 3 + z.id * 0.1) % 1;
+        g.globalAlpha = a * Math.sin(ph * Math.PI);
+        S.text(g, 'z', z.x + Math.cos(i * 2.2 + z.id) * z.r * 0.4 + ph * 10, z.y - ph * 40, 14 + i * 3, '#6a3f86');
+      }
+      g.globalAlpha = 0.45 * a; g.setLineDash([4, 6]); g.strokeStyle = '#7b3fa6'; g.lineWidth = 1.2;
+      g.beginPath(); g.ellipse(z.x, z.y, z.r, z.r * 0.72, 0, 0, G.TAU); g.stroke(); g.setLineDash([]);
+      g.restore(); g.globalAlpha = 1;
+    },
+    void(g, z) {
+      const a = zoneAlpha(z), t = G.Game.time;
+      g.save();
+      g.globalAlpha = 0.85 * a; g.fillStyle = '#07040f';
+      g.beginPath(); g.ellipse(z.x, z.y, z.r, z.r * 0.72, 0, 0, G.TAU); g.fill();
+      g.strokeStyle = '#9b6fe0'; g.lineWidth = 1.5;
+      for (let k = 0; k < 3; k++) {
+        g.globalAlpha = 0.6 * a; g.beginPath();
+        for (let i = 0; i <= 20; i++) {
+          const f = i / 20, rad = z.r * (1 - f * 0.85), ang = -t * 2 + f * 4.5 + (k * G.TAU) / 3;
+          const px = z.x + Math.cos(ang) * rad, py = z.y + Math.sin(ang) * rad * 0.72;
+          i ? g.lineTo(px, py) : g.moveTo(px, py);
+        }
+        g.stroke();
+      }
+      g.globalAlpha = 0.9 * a; S.circle(g, z.x, z.y, z.r, { ry: z.r * 0.72, stroke: '#b48ae0', w: 1.8, single: true });
+      g.globalAlpha = a; g.fillStyle = '#ffffff';
+      for (let i = 0; i < 4; i++) { const ang = t * 1.5 + i * 1.6 + z.id, rad = z.r * (0.3 + 0.15 * i); g.fillRect(z.x + Math.cos(ang) * rad, z.y + Math.sin(ang) * rad * 0.72, 1.6, 1.6); }
+      g.restore(); g.globalAlpha = 1;
+    },
   };
 
   R.drop = function (g, d, t) {

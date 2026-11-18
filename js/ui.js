@@ -86,7 +86,7 @@
     const rb = $('resbar');
     rb.children[0].style.width = (100 * p.res / p.resMax).toFixed(1) + '%';
     rb.children[1].textContent = Math.floor(p.res) + ' / ' + p.resMax;
-    $('pname').innerHTML = `<span>${esc(ch.name)}${ch.hardcore ? '<span class="hc">HC</span>' : ''}</span><small>Niv. ${ch.lvl} ${D.CLASSES[ch.cls].name}</small>`;
+    $('pname').innerHTML = `<span>${esc(ch.name)}${ch.hardcore ? '<span class="hc">HC</span>' : ''}${ch.legend ? '<span class="legend">★</span>' : ''}</span><small>Niv. ${ch.lvl} ${D.CLASSES[ch.cls].name}</small>`;
     const need = D.xpNext(ch.lvl);
     $('xpbar').children[0].style.width = (ch.lvl >= D.MAX_LEVEL ? 100 : (100 * ch.xp) / need).toFixed(1) + '%';
     $('xpbar').children[1].textContent = ch.lvl >= D.MAX_LEVEL ? 'Niveau maximum' : 'Expérience ' + G.fmt(ch.xp) + ' / ' + G.fmt(need);
@@ -308,7 +308,9 @@
       if (done.length) body += '<div class="sectitle">Terminées</div><div class="list">' + done.map((q) => card(q, `<button class="main" data-turn="${q.id}">Rendre la quête</button>`)).join('') + '</div>';
       if (avail.length) body += '<div class="sectitle" style="margin-top:10px">Disponibles</div><div class="list">' + avail.map((q) => card(q, `<button class="main" data-accept="${q.id}">Accepter</button>`)).join('') + '</div>';
       if (act.length) body += '<div class="sectitle" style="margin-top:10px">En cours</div><div class="list">' + act.map((q) => card(q, `<span class="pill">${ch.quests[q.id].n}/${q.n}</span>`)).join('') + '</div>';
-      if (!avail.length && !act.length && !done.length) body += '<p class="muted">Plus de quêtes pour le moment. La suite de l\'histoire arrive avec les prochains donjons.</p>';
+      if (!avail.length && !act.length && !done.length) body += ch.legend
+        ? '<div class="say"><b>Capitaine Aldric :</b> « Le Sceau des Quinze brille de nouveau au-dessus de Havre-Gris. Valdorne est libre, grâce à vous. Les donjons restent ouverts aux plus courageux… et leurs trésors aussi. »</div>'
+        : '<p class="muted">Plus de quêtes pour le moment. Montez de niveau, puis revenez me voir.</p>';
       return { title: 'Garnison — Capitaine Aldric', sub: 'Quêtes', body };
     },
     portal() {
@@ -503,6 +505,34 @@
       <p class="muted" style="margin:0">Son nom est gravé au Cimetière des héros (menu de l'écran titre).</p>
       <button class="main" id="hcgo">Retour à l'écran titre</button></div>`;
     sc.onclick = (e) => { if (e.target.id === 'hcgo') UI.showTitle(); };
+  };
+
+  // ================= Fin de l'histoire =================
+  UI.showEnding = function (info) {
+    UI.closePanel();
+    const sc = $('screen');
+    sc.className = 'screen dim live'; sc.hidden = false;
+    const h = Math.floor(info.time / 3600), min = Math.floor((info.time % 3600) / 60);
+    sc.innerHTML = `<div class="box sk ending"><canvas class="seal" width="240" height="240"></canvas>
+      <h2>Le Sceau des Quinze est restauré</h2>
+      <p class="epi">Le Roi Cendré s'effondre. Sa couronne de flammes s'éteint, et le quinzième fragment glisse de sa main vers la vôtre. À Havre-Gris, les quinze fragments s'assemblent dans un éclat d'or : le Sceau renaît, et sa lumière repousse la cendre jusqu'aux frontières de Valdorne.</p>
+      <p class="epi">On chantera longtemps le nom de <b>${esc(info.name)}</b>, ${D.CLASSES[info.cls].name.toLowerCase()}${info.hardcore ? ' en mode Hardcore, avec une seule vie' : ''}, qui a traversé les quinze donjons. Mais les monstres ne disparaissent jamais tout à fait… et les donjons attendent toujours les plus courageux.</p>
+      <div class="stats" style="min-width:380px"><span>Niveau</span><span>${info.lvl}</span><span>Temps de jeu</span><span>${h ? h + ' h ' : ''}${min} min</span>
+      <span>Monstres vaincus</span><span>${G.fmt(info.kills)}</span><span>Morts</span><span>${info.hardcore ? 'aucune' : info.deaths}</span></div>
+      <p class="muted" style="margin:0">Votre héros porte désormais le titre de Légende de Valdorne.</p>
+      <button class="main" id="ego">Continuer</button></div>`;
+    // le Sceau dessiné à la main
+    const cv = sc.querySelector('.seal'), g = cv.getContext('2d'), S = G.S;
+    g.scale(2, 2); S.begin(15, true);
+    S.circle(g, 60, 60, 52, { fill: '#e2c043', fillA: 0.35, stroke: '#8a6a10', w: 2 });
+    for (let i = 0; i < 15; i++) {
+      const a = (i / 15) * G.TAU - Math.PI / 2, x = 60 + Math.cos(a) * 40, y = 60 + Math.sin(a) * 40;
+      S.poly(g, [[x, y - 6], [x + 5, y], [x, y + 6], [x - 5, y]], { fill: '#c9a227', w: 1 });
+    }
+    S.circle(g, 60, 60, 18, { fill: '#f2c46b', w: 1.6 });
+    S.text(g, 'XV', 60, 61, 18, '#5a4a10');
+    sc.onclick = (e) => { if (e.target.id === 'ego') sc.hidden = true; };
+    G.Save.save(true, true);
   };
 
   UI.showDeath = function (lost) {

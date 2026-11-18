@@ -1,23 +1,28 @@
 // Cartes : donjons (plan fixe), ville de Havre-Gris, camp du tutoriel, rendu crayonné, collisions, chemins, brouillard.
-// Cases : 0 = roche/mur, 1 = sol, 2 = grille du boss, 3 = obstacle/bâtiment, 4 = eau peu profonde (ralentit).
+// Cases : 0 = roche/mur, 1 = sol, 2 = grille du boss, 3 = obstacle/bâtiment, 4 = eau peu profonde (ralentit),
+// 5 = lave (brûle), 6 = glace (glisse). Les décors des donjons 10 à 15 sont dans world2.js (W.EXT).
 (function () {
   const D = G.D, S = G.S;
   const T = D.TILE;
   const W = (G.W = {});
-  const STATUE = { crypt: 'angel', bastion: 'knight', library: 'bust', mine: 'rockpile', forest: 'tree', swamp: 'deadtree', crystal: 'crystal', peak: 'icerock', temple: 'column' };
-  const LIGHT_DECOS = { candle: [95, '#f2b45a'], lantern: [130, '#f2c46b'], brazier: [165, '#f08a2a'], candelabra: [130, '#f2c46b'], glowshroom: [75, '#9be0b0'], campfire: [190, '#f08a2a'],
-    crystalsmall: [80, '#9fd8f0'], runes: [85, '#7fd0e0'] };
+  const STATUE = (W.STATUE = { crypt: 'angel', bastion: 'knight', library: 'bust', mine: 'rockpile', forest: 'tree', swamp: 'deadtree', crystal: 'crystal', peak: 'icerock', temple: 'column' });
+  // Extensions de rendu et de construction (remplies par world2.js)
+  W.EXT = { floor: {}, void: {}, wallFace: {}, overlay: {}, obstacle: {}, wallDeco: {}, deco: {}, feature: {}, wallKind: {}, wallLight: {}, obsLight: {}, tiles: null, afterFeatures: null };
+  const LIGHT_DECOS = (W.LIGHT_DECOS = { candle: [95, '#f2b45a'], lantern: [130, '#f2c46b'], brazier: [165, '#f08a2a'], candelabra: [130, '#f2c46b'], glowshroom: [75, '#9be0b0'], campfire: [190, '#f08a2a'],
+    crystalsmall: [80, '#9fd8f0'], runes: [85, '#7fd0e0'] });
 
   function newMap(w, h, theme) {
     return {
       w, h, theme, tiles: new Uint8Array(w * h), corr: new Uint8Array(w * h), explored: new Uint8Array(w * h),
-      rooms: [], gate: [], gateLocked: false, decos: [], obstacles: [], lights: [], npcs: [], buildings: [], chimneys: [], wallDecos: [],
+      rooms: [], gate: [], gateLocked: false, decos: [], obstacles: [], lights: [], npcs: [], buildings: [], chimneys: [], wallDecos: [], sinks: [],
     };
   }
   W.get = (m, x, y) => (x < 0 || y < 0 || x >= m.w || y >= m.h ? 0 : m.tiles[y * m.w + x]);
   W.set = (m, x, y, v) => { if (x >= 0 && y >= 0 && x < m.w && y < m.h) m.tiles[y * m.w + x] = v; };
-  W.isFloor = (m, x, y) => { const t = W.get(m, x, y); return t === 1 || t === 2 || t === 4; };
+  W.isFloor = (m, x, y) => { const t = W.get(m, x, y); return t === 1 || t === 2 || t >= 4; };
   W.isWater = (m, x, y) => W.get(m, x, y) === 4;
+  W.lavaAt = (m, px, py) => W.get(m, Math.floor(px / T), Math.floor(py / T)) === 5;
+  W.iceAt = (m, px, py) => W.get(m, Math.floor(px / T), Math.floor(py / T)) === 6;
   W.solidTile = (m, x, y) => { const t = W.get(m, x, y); return t === 0 || t === 3 || (t === 2 && m.gateLocked); };
   W.solidAt = (m, px, py) => W.solidTile(m, Math.floor(px / T), Math.floor(py / T));
   W.waterAt = (m, px, py) => W.isWater(m, Math.floor(px / T), Math.floor(py / T));
@@ -50,7 +55,10 @@
     const seed = Math.floor(rng() * 1e6);
     m.obstacles.push({ x, y, w, h, kind, room: r.idx, seed });
     if (kind === 'crystal') m.lights.push({ x: (x + 0.5) * T, y: (y + 0.2) * T, r: 150, color: seed % 2 ? '#8fd8f0' : '#c9a0f0', flick: false, kind: 'crystal' });
+    const L = W.EXT.obsLight[kind];
+    if (L) m.lights.push({ x: (x + w / 2) * T, y: (y + h * 0.4) * T, r: L[0], color: L[1], flick: !!L[2], kind: L[3] || 'crystal' });
   }
+  W.placeObs = placeObs;
   function addFeature(m, r, f, rng) {
     const th = D.THEMES[m.theme];
     const cx = Math.floor(r.x + r.w / 2), cy = Math.floor(r.y + r.h / 2);
@@ -83,6 +91,8 @@
           if (W.get(m, x, y) === 1) W.set(m, x, y, 4);
         }
       }
+    } else if (W.EXT.feature[f]) {
+      W.EXT.feature[f](m, r, rng, { ok, cx, cy, inCross });
     } else if (f === 'trees' || f === 'statues' || f === 'crystals') {
       const n = f === 'statues' ? 2 + Math.floor(rng() * 3) : 3 + Math.floor(rng() * 3);
       const kind = f === 'trees' ? (th.obstacle === 'deadtree' || th.obstacle === 'pine' ? th.obstacle : 'tree') : f === 'crystals' ? 'crystal' : STATUE[m.theme] || 'angel';
@@ -130,12 +140,14 @@
       m.obstacles = m.obstacles.filter((o) => { if (o.room !== r.idx) return true; for (let j = o.y; j < o.y + o.h; j++) for (let i = o.x; i < o.x + o.w; i++) W.set(m, i, j, 1); return false; });
       seen = reach(m, ex, ey);
     });
+    if (W.EXT.afterFeatures) W.EXT.afterFeatures(m, rng);
     placeDecos(m, def.id, rng);
     placeWallDecos(m, rng);
     m.spawn = { x: (er.x + er.w / 2) * T, y: (er.y + er.h / 2) * T };
     return m;
   };
 
+  const NO_FLAME = ['glowshroom', 'crystalsmall', 'runes', 'voidcrystal', 'starshard', 'dreamflower'];
   function placeDecos(m, seed, rng) {
     const th = D.THEMES[m.theme];
     m.rooms.forEach((r) => {
@@ -156,7 +168,7 @@
         const d = { x: (x + 0.5) * T + (rng() - 0.5) * 10, y: (y + 0.5) * T + (rng() - 0.5) * 10, kind, s: 0.8 + rng() * 0.5, seed: Math.floor(rng() * 1e6) };
         m.decos.push(d);
         const L = LIGHT_DECOS[kind];
-        if (L) m.lights.push({ x: d.x, y: d.y - 10, r: L[0], color: L[1], flick: kind !== 'glowshroom', kind });
+        if (L) m.lights.push({ x: d.x, y: d.y - 10, r: L[0], color: L[1], flick: !NO_FLAME.includes(kind), kind });
         i++;
       }
     });
@@ -179,6 +191,7 @@
         else if (m.theme === 'crystal') kind = k % 2 ? 'vein' : null;
         else if (m.theme === 'peak') kind = 'icicles';
         else if (m.theme === 'temple') kind = k % 2 ? 'seaweedwall' : 'torch';
+        else if (W.EXT.wallKind[m.theme]) kind = W.EXT.wallKind[m.theme](k, rng);
         else kind = null;
         k++;
         if (!kind) continue;
@@ -186,6 +199,8 @@
         m.wallDecos.push(wd);
         if (kind === 'torch' && th.torch) m.lights.push({ x: wd.x, y: wd.y + 14, r: 165, color: th.blueFire ? '#7fd0e0' : '#f2a03a', flick: true, kind: 'torch', flame: true, blue: !!th.blueFire });
         if (kind === 'vein') m.lights.push({ x: wd.x, y: wd.y + 16, r: 110, color: '#b48ae0', flick: false, kind: 'vein' });
+        const WL = W.EXT.wallLight[kind];
+        if (WL) m.lights.push({ x: wd.x, y: wd.y + 16, r: WL[0], color: WL[1], flick: !!WL[2], kind: WL[3] || 'vein' });
       }
     });
   }
@@ -425,6 +440,7 @@
     else drawFloorDetails(g, m, th, rng);
     drawCarpets(g, m, th);
     drawWater(g, m, th, rng);
+    if (W.EXT.tiles) W.EXT.tiles(g, m, th, rng);
     drawVoid(g, m, th, rng);
 
     // faces des murs (vue de 3/4)
@@ -439,6 +455,7 @@
       if (W.isFloor(m, x, y + 1)) S.line(g, px - 1, py + T, px + T + 1, py + T, 2.2, S.ink, 1.2, 1);
     }
     if (m.theme === 'peak') drawCliffs(g, m, rng);
+    if (W.EXT.overlay[m.theme]) W.EXT.overlay[m.theme](g, m, rng);
     if (m.theme === 'forest' || m.tutoMap) drawTreeBorder(g, m, rng, m.tutoMap ? 58 : 999);
     if (m.theme === 'swamp') drawReedBorder(g, m, rng);
     if (m.town) drawTownWalls(g, m);
@@ -454,6 +471,7 @@
     for (let y = 0; y < m.h; y++) for (let x = 0; x < m.w; x++) {
       if (W.get(m, x, y) !== 1 && W.get(m, x, y) !== 2) continue;
       const px = x * T, py = y * T, r = rng();
+      if (W.EXT.floor[m.theme]) { W.EXT.floor[m.theme](g, m, x, y, px, py, r, rng); continue; }
       switch (m.theme) {
         case 'crypt': case 'mine':
           if (r < 0.18) { const w = 10 + rng() * 14, h = 8 + rng() * 10; S.rect(g, px + rng() * (T - w), py + rng() * (T - h), w, h, { stroke: 'rgba(60,45,30,0.35)', w: 1, single: true, amt: 0.8, over: 1 }); }
@@ -499,14 +517,15 @@
 
   // tapis dans les grandes salles du bastion et de la bibliothèque
   function drawCarpets(g, m, th) {
-    if (m.theme !== 'bastion' && m.theme !== 'library') return;
+    if (m.theme !== 'bastion' && m.theme !== 'library' && m.theme !== 'ash') return;
     m.rooms.forEach((r, i) => {
       if (r.spec.includes('entry') || r.w < 14) return;
+      if (m.theme === 'ash' && !r.spec.includes('boss')) return;
       const cx = (r.x + r.w / 2) * T, cy = (r.y + r.h / 2) * T;
       const vertical = r.spec.includes('boss') || r.h > r.w;
       const w = vertical ? 2.4 * T : (r.w - 6) * T, h = vertical ? (r.h - 3) * T : 2.4 * T;
       S.begin(900 + i, true);
-      const col = m.theme === 'bastion' ? '#8c2a20' : i % 2 ? '#2c4f7a' : '#7a2734';
+      const col = m.theme === 'bastion' ? '#8c2a20' : m.theme === 'ash' ? '#5a1a14' : i % 2 ? '#2c4f7a' : '#7a2734';
       S.rect(g, cx - w / 2, cy - h / 2, w, h, { fill: col, fillA: 0.55, w: 1.4, stroke: 'rgba(43,33,24,0.7)' });
       S.rect(g, cx - w / 2 + 5, cy - h / 2 + 5, w - 10, h - 10, { stroke: '#c9a227', w: 1.2, single: true, amt: 0.6 });
     });
@@ -560,6 +579,8 @@
       }
       g.globalAlpha = 1;
       for (let i = 0; i < 6; i++) { const bx = rr() * m.w * T, by = rr() * m.h * T; S.line(g, bx - 6, by - 3, bx, by, 1.2, '#5a6f86', 0.5, 1); S.line(g, bx, by, bx + 6, by - 3, 1.2, '#5a6f86', 0.5, 1); }
+    } else if (W.EXT.void[m.theme]) {
+      W.EXT.void[m.theme](g, m, th, rng);
     } else if (m.town) {
       g.globalAlpha = 0.95; g.fillStyle = '#9a9488'; g.fill(); g.clip(); g.globalAlpha = 1;
       for (let y = 0; y < m.h * T; y += 12) for (let x = ((y / 12) % 2) * 12; x < m.w * T; x += 24) { g.strokeStyle = 'rgba(43,33,24,0.25)'; g.lineWidth = 0.8; g.strokeRect(x, y, 24, 12); }
@@ -581,6 +602,7 @@
   function drawWallFace(g, m, th, x, y, rng) {
     const px = x * T, py = y * T;
     if (m.theme === 'forest' || m.tutoMap) return;
+    if (W.EXT.wallFace[m.theme]) { W.EXT.wallFace[m.theme](g, m, th, x, y, px, py, rng); return; }
     if (m.theme === 'peak') {
       // rebord rocheux couvert de neige
       g.fillStyle = '#8a8e96'; g.fillRect(px, py + 12, T, T - 12);
@@ -773,6 +795,7 @@
     switch (o.kind) {
       case 'pillar': {
         const tl = m.theme === 'temple';
+        if (W.EXT.obstacle['pillar_' + m.theme]) { W.EXT.obstacle['pillar_' + m.theme](g, m, o, x, y, w, h, cx, cy, rr); break; }
         S.circle(g, cx, y + h - 6, w * 0.45, { ry: 9, fill: tl ? '#6f9a96' : '#9a9488', w: 1.6 });
         S.rect(g, cx - w * 0.3, y - 18, w * 0.6, h - 6 + 18 - 4, { fill: tl ? '#9fc4be' : '#c9c1af', w: 1.8, hatch: { sp: 5, ang: 1.5, c: '#2b2118', a: 0.2, w: 0.7 } });
         S.rect(g, cx - w * 0.38, y - 26, w * 0.76, 10, { fill: tl ? '#86b0aa' : '#b5ad9c', w: 1.6 });
@@ -890,6 +913,8 @@
         S.line(g, cx, y - 10, cx, y - 22, 1.5, '#4a3524'); S.poly(g, [[cx, y - 22], [cx + 12, y - 18], [cx, y - 14]], { fill: '#a8321f', w: 1 });
         break;
       }
+      default:
+        if (W.EXT.obstacle[o.kind]) W.EXT.obstacle[o.kind](g, m, o, x, y, w, h, cx, cy, rr);
     }
   }
 
@@ -933,6 +958,8 @@
       case 'seaweedwall':
         for (let k = 0; k < 3; k++) { g.strokeStyle = '#4f7a3d'; g.lineWidth = 2; g.beginPath(); g.moveTo(x - 8 + k * 8, y + 32); g.quadraticCurveTo(x - 14 + k * 8, y + 18, x - 6 + k * 8, y + 6); g.stroke(); }
         break;
+      default:
+        if (W.EXT.wallDeco[d.kind]) W.EXT.wallDeco[d.kind](g, d, x, y);
     }
   }
 
@@ -1149,6 +1176,8 @@
         S.rect(g, x - 6, y - 26, 12, 30, { fill: '#8a8478', w: 1.5, hatch: { sp: 5, c: '#2b2118', a: 0.25, w: 0.6 } });
         S.line(g, x - 3, y - 18, x + 3, y - 12, 1, '#7b3fa6', 0.4, 1);
         break;
+      default:
+        if (W.EXT.deco[d.kind]) W.EXT.deco[d.kind](g, d, x, y, s);
     }
   }
 })();
