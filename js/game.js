@@ -264,7 +264,7 @@
     sc.decals.push({ x, y, r, color, kind: kind || 'splat', seed: G.uid(), t: 0 });
     if (sc.decals.length > 160) sc.decals.shift();
   }
-  Game.shake = (a) => { Game.cam.shake = Math.min(14, Math.max(Game.cam.shake, a)); };
+  Game.shake = (a) => { if (G.opt('shake')) Game.cam.shake = Math.min(14, Math.max(Game.cam.shake, a)); };
 
   // ================= Statistiques dynamiques =================
   const hasBuff = (u, id) => u.buffs && u.buffs.some((b) => b.id === id);
@@ -348,10 +348,10 @@
         tgt.combatT = 0;
         Game.shake(4 + (amt / tgt.maxHp) * 30);
         if (D.CLASSES[tgt.cls].res === 'rage') gainRes(tgt, (amt / tgt.maxHp) * 60);
-        text(tgt.x, tgt.y - 36, '-' + Math.round(amt), '#b3261e', 20);
+        if (G.opt('dmgNums')) text(tgt.x, tgt.y - 36, '-' + Math.round(amt), '#b3261e', 20);
         G.UI.hurt();
         if (Math.random() < 0.35) decal(tgt.x + G.rnd(-8, 8), tgt.y + G.rnd(-2, 6), 3 + Math.random() * 3, '#7a2734');
-      } else if (Math.random() < 0.5) text(tgt.x, tgt.y - 30, '-' + Math.round(amt), '#7a2734', 14);
+      } else if (Math.random() < 0.5 && G.opt('dmgNums')) text(tgt.x, tgt.y - 30, '-' + Math.round(amt), '#7a2734', 14);
       if (tgt.hp <= 0) {
         if (tgt.isPlayer && hasBuff(tgt, 'immortel')) tgt.hp = 1;
         else if (tgt.isPlayer && hasBuff(tgt, 'esprit')) {
@@ -375,7 +375,7 @@
     tgt.hp -= amt; tgt.hitT = 0.12;
     if (!tgt.aggro && !tgt.dummyUnit) aggroUnit(tgt);
     const fromPlayer = src && src.isPlayer;
-    if (fromPlayer || (src && src.minion)) {
+    if ((fromPlayer || (src && src.minion)) && G.opt('dmgNums')) {
       const big = o.crit;
       text(tgt.x, tgt.y - tgt.r * 2 - 6, Math.round(amt) + (big ? ' !' : ''), big ? '#c4661a' : src.minion ? '#3f7d2a' : '#2b2118', big ? 26 : o.isDot ? 15 : 19);
     }
@@ -1235,12 +1235,12 @@
       return;
     }
     if (p.stunT > 0) { p.vx = p.vy = 0; return; }
-    const k = Game.keys;
+    const In = G.Input;
     let mx = 0, my = 0;
-    if (k.KeyW || k.ArrowUp) my -= 1;
-    if (k.KeyS || k.ArrowDown) my += 1;
-    if (k.KeyA || k.ArrowLeft) mx -= 1;
-    if (k.KeyD || k.ArrowRight) mx += 1;
+    if (In.held('up')) my -= 1;
+    if (In.held('down')) my += 1;
+    if (In.held('left')) mx -= 1;
+    if (In.held('right')) mx += 1;
     if (mx || my) {
       const l = Math.hypot(mx, my);
       const water = W.waterAt(sc.map, p.x, p.y);
@@ -1256,7 +1256,7 @@
       tuto('move', Math.hypot(p.x - px, p.y - py));
     }
     p.vx = (p.x - px) / dt; p.vy = (p.y - py) / dt;
-    if (Game.mouse.down && !G.UI.panelOpen()) Game.useAbility(0);
+    if (In.held('attack') && !G.UI.panelOpen()) Game.useAbility(0);
   }
 
   Game.drinkPotion = function () {

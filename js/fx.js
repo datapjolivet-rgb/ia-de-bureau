@@ -106,7 +106,7 @@
     g.restore();
 
     // ----- éclairage, puis brouillard d'exploration (le papier non dessiné reste clair) -----
-    if (th.dark > 0) light(g, sc, sx, sy, th.dark, t);
+    if (th.dark > 0 && G.opt('light')) light(g, sc, sx, sy, th.dark, t);
     g.save();
     g.translate(-sx, -sy);
     sc.ambient.forEach((a) => (a.kind === 'firefly' || a.kind === 'ember' || a.kind === 'sparkle') && drawAmbient(g, a));
@@ -122,10 +122,10 @@
       g.globalAlpha = a; S.text(g, tx.s, tx.x, tx.y, tx.size, tx.color, 'center', 'rgba(236,224,196,0.85)'); g.globalAlpha = 1;
     });
     const p = Game.player;
-    if (obj && p && Game.mode === 'play') drawArrow(g, p, obj, t);
+    if (obj && p && Game.mode === 'play' && G.opt('arrow')) drawArrow(g, p, obj, t);
     if (sc.prompt && Game.mode === 'play') {
       S.begin(3);
-      const label = 'E — ' + sc.prompt.label;
+      const label = G.Input.shortLabel('interact') + ' — ' + sc.prompt.label;
       g.font = '700 19px Caveat, cursive';
       const w = g.measureText(label).width + 24;
       S.rect(g, p.x - w / 2, p.y + 18, w, 26, { fill: '#efe3c6', fillA: 0.95, w: 1.4 });

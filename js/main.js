@@ -90,40 +90,86 @@
     G.Game.mouse.x = ((e.clientX - r.left) / r.width) * 1280;
     G.Game.mouse.y = ((e.clientY - r.top) / r.height) * 720;
   });
-  cv.addEventListener('mousedown', (e) => { if (e.button === 0) G.Game.mouse.down = true; });
-  window.addEventListener('mouseup', (e) => { if (e.button === 0) G.Game.mouse.down = false; });
+  G.Game.mbtn = {};
+  cv.addEventListener('mousedown', (e) => {
+    if (G.UI.capturing) return;
+    if (e.button > 2) e.preventDefault();
+    const code = 'Mouse' + e.button;
+    G.Game.mbtn[code] = true;
+    if (e.button === 0) G.Game.mouse.down = true;
+    pressActions(code);
+  });
+  window.addEventListener('mouseup', (e) => { G.Game.mbtn['Mouse' + e.button] = false; if (e.button === 0) G.Game.mouse.down = false; });
   cv.addEventListener('contextmenu', (e) => e.preventDefault());
-  window.addEventListener('blur', () => { G.Game.keys = {}; G.Game.mouse.down = false; });
+  window.addEventListener('blur', () => { G.Game.keys = {}; G.Game.mbtn = {}; G.Game.mouse.down = false; });
+  // Menu des touches : un bouton de la souris se choisit en cliquant sur la case en attente ;
+  // un clic ailleurs annule simplement l'attente.
+  let swallowUntil = 0;
+  window.addEventListener('mousedown', (e) => {
+    const UI = G.UI;
+    if (!UI.capturing) return;
+    const onWait = e.target.closest && e.target.closest('.kbtn.wait');
+    if (!onWait) { UI.cancelCapture(); return; }
+    if (!UI.capturing.armed) return;
+    e.preventDefault(); e.stopPropagation();
+    swallowUntil = performance.now() + 800;
+    UI.captureKey('Mouse' + e.button);
+  }, true);
+  window.addEventListener('click', (e) => { if (performance.now() < swallowUntil) { e.preventDefault(); e.stopPropagation(); swallowUntil = 0; } }, true);
+  window.addEventListener('contextmenu', (e) => { if (G.UI.capturing || performance.now() < swallowUntil) { e.preventDefault(); swallowUntil = 0; } }, true);
+  // boutons « précédent / suivant » de la souris : ne pas quitter la page en pleine partie
+  window.addEventListener('mouseup', (e) => { if (e.button > 2 && (G.Game.mode === 'play' || performance.now() < swallowUntil)) e.preventDefault(); }, true);
+
+  // Déclenche les actions liées à une touche (sorts, potion, interaction)
+  function pressActions(code) {
+    const Game = G.Game, UI = G.UI;
+    if (Game.mode !== 'play' || !$('screen').hidden) return;
+    const panel = UI.currentPanel();
+    const blocking = panel === 'menu' || panel === 'keys' || panel === 'options';
+    for (const a of G.Input.actionsFor(code)) {
+      const m = /^s([1-5])$/.exec(a);
+      if (m && !blocking) Game.useAbility(+m[1]);
+      else if (a === 'potion' && !blocking) Game.drinkPotion();
+      else if (a === 'interact' && !panel) Game.interact();
+    }
+  }
 
   // ================= Clavier =================
-  const GAME_KEYS = ['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space', 'Tab'];
+  const NO_SCROLL = ['Space', 'Tab', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'];
   window.addEventListener('keydown', (e) => {
-    const Game = G.Game, UI = G.UI;
+    const Game = G.Game, UI = G.UI, Input = G.Input;
+    Input.learn(e);
+    if (UI.capturing) { e.preventDefault(); UI.captureKey(e.code); return; }
     const typing = e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA');
-    if (typing) { if (e.key === 'Enter') { const b = $('cgo'); if (b) b.click(); } return; }
+    if (typing) {
+      if (e.key === 'Enter') { const b = $('cgo'); if (b) b.click(); }
+      else if (e.code === 'Escape' && Game.mode === 'title') { e.target.blur(); UI.titleKey(e); }
+      return;
+    }
     if (e.code === 'Tab') e.preventDefault();
-    if (Game.mode === 'title') return;
+    if (Game.mode === 'title') { UI.titleKey(e); return; }
+    const acts = Input.actionsFor(e.code);
     const screenOpen = !$('screen').hidden;
-    if (e.code === 'Escape') {
+    if (acts.includes('menu') || e.code === 'Escape') {
       if (UI.closeConfirm()) return;
       if (screenOpen) return;
-      if (UI.currentPanel()) UI.closePanel();
+      const panel = UI.currentPanel();
+      if (panel === 'keys' || panel === 'options') UI.openPanel('menu');
+      else if (panel) UI.closePanel();
       else if (Game.mode === 'play') UI.openPanel('menu');
       return;
     }
     if (screenOpen) return;
-    if (e.code === 'Tab') {
+    if (acts.includes('inventory')) {
+      e.preventDefault();
       if (UI.currentPanel() === 'inventory') UI.closePanel();
-      else if (Game.mode === 'play' && UI.currentPanel() !== 'menu') UI.openPanel('inventory');
+      else if (Game.mode === 'play' && !['menu', 'keys', 'options'].includes(UI.currentPanel())) UI.openPanel('inventory');
       return;
     }
-    if (GAME_KEYS.includes(e.code)) e.preventDefault();
+    if (acts.length || NO_SCROLL.includes(e.code)) e.preventDefault();
     Game.keys[e.code] = true;
     if (e.repeat) return;
-    const m = /^(Digit|Numpad)([1-5])$/.exec(e.code);
-    if (m && UI.currentPanel() !== 'menu') Game.useAbility(+m[2]);
-    else if (e.code === 'KeyR') Game.drinkPotion();
-    else if (e.code === 'KeyE' && !UI.currentPanel()) Game.interact();
+    pressActions(e.code);
   });
   window.addEventListener('keyup', (e) => { G.Game.keys[e.code] = false; });
 
@@ -133,9 +179,12 @@
     const dt = Math.min(0.05, (t - last) / 1000);
     last = t;
     try {
-      G.Game.update(dt);
-      G.Game.render(ctx);
-      G.UI.update();
+      if (G.Game.mode === 'title') G.UI.titleFrame(dt);
+      else {
+        G.Game.update(dt);
+        G.Game.render(ctx);
+        G.UI.update();
+      }
     } catch (err) { console.error(err); }
     requestAnimationFrame(frame);
   }
@@ -144,11 +193,13 @@
   async function boot() {
     G.UI.init();
     Save.initLocal();
+    G.Input.load();
     try { await Promise.race([document.fonts.load('700 20px Caveat'), new Promise((r) => setTimeout(r, 2500))]); } catch (e) { /* police de secours */ }
     G.UI.showTitle();
     requestAnimationFrame(frame);
     const changed = await Save.initRemote();
-    if (G.Game.mode === 'title' && !$('screen').querySelector('#cname')) G.UI.showTitle();
+    if (changed) G.Input.load();
+    if (G.Game.mode === 'title' && G.UI.titleView === 'home') G.UI.showTitle();
     if (changed && Save.local) { try { localStorage.setItem(KEY, JSON.stringify(Save.data)); } catch (e) { /* ignoré */ } }
   }
   boot();

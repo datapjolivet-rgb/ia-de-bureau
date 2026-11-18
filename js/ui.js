@@ -1,4 +1,5 @@
-// Interface : écrans titre/création, HUD, inventaire, forge, boutique, compétences, quêtes, portail, mort.
+// Interface : HUD, inventaire, forge, boutique, compétences, quêtes, portail, menu pause, mort.
+// L'écran titre, la création de héros, les touches et les options sont dans menu.js.
 (function () {
   const D = G.D, I = G.I, Game = G.Game;
   const UI = (G.UI = {});
@@ -18,7 +19,7 @@
         <div id="info" class="sk"><div id="zone"></div><div id="wallet"></div><div id="tracker"></div></div>
         <div id="bossbar" class="sk" hidden><div id="bossname"></div><div class="bar"><i></i><span></span></div></div>
         <div id="hotwrap"><div class="bar" id="xpbar"><i></i><span></span></div><div id="hotbar" class="sk live"></div></div>
-        <div id="hint">ZQSD bouger · Clic attaquer · 1–5 sorts · R potion · E interagir · TAB inventaire · Échap menu</div>
+        <div id="hint"></div>
       </div>
       <div id="toasts"></div>
       <div id="panel" class="sk live" hidden><header><div><h2 id="ptitle"></h2><div class="sub" id="psub"></div></div><button class="close" id="pclose">Fermer (Échap)</button></header><div id="pbody"></div></div>
@@ -28,111 +29,9 @@
     $('tutoskip').onclick = () => G.Tuto && G.Tuto.skip();
     $('pbody').addEventListener('click', onPanelClick);
     $('pbody').addEventListener('contextmenu', onPanelRightClick);
+    $('pbody').addEventListener('change', (e) => { if (panelId === 'options') UI.optionsChange(e); });
     $('ui').addEventListener('mouseover', (e) => { const t = e.target.closest('[data-tip]'); tipRef = t ? t.dataset.tip : null; showTip(t); });
     $('ui').addEventListener('mouseout', (e) => { if (!e.relatedTarget || !e.relatedTarget.closest || !e.relatedTarget.closest('[data-tip]')) { tipRef = null; $('tip').hidden = true; } });
-  };
-
-  // ================= Écran titre =================
-  UI.showTitle = function () {
-    Game.mode = 'title';
-    Game.scene = null;
-    $('hud').hidden = true; $('panel').hidden = true; panelId = null;
-    const data = G.Save.data;
-    const sc = $('screen');
-    sc.className = 'screen live'; sc.hidden = false;
-    const chars = data.chars.map((c, i) => {
-      const C = D.CLASSES[c.cls];
-      return `<div class="charcard sk${c.hardcore ? ' hardcore' : ''}"><h3>${esc(c.name)}${c.hardcore ? '<span class="hc">Hardcore</span>' : ''}</h3><div class="muted">${C.name} · niveau ${c.lvl}</div>
-        <div class="muted">${c.cleared}/15 donjons · ${c.hardcore ? 'une seule vie' : c.deaths + ' mort' + (c.deaths > 1 ? 's' : '')}</div>
-        <div class="row"><button class="main" data-play="${i}">Jouer</button><button class="danger" data-del="${i}">Supprimer</button></div></div>`;
-    }).join('');
-    sc.innerHTML = `<canvas id="title-canvas" width="1280" height="720"></canvas>
-      <div id="title-logo">Chroniques de Valdorne<small>Les Quinze Sceaux</small></div>
-      <p style="max-width:640px;text-align:center;font-size:19px;margin:0">Le Roi Cendré a brisé le Sceau des Quinze. Ses lieutenants gardent chacun un fragment au fond d'un donjon. Havre-Gris est le dernier bastion.</p>
-      ${chars ? `<div class="chars">${chars}</div>` : '<p class="muted" style="margin:0">Aucun héros pour l\'instant.</p>'}
-      <button class="main" id="newchar" ${data.chars.length >= 6 ? 'disabled' : ''}>Créer un nouveau héros</button>
-      <p class="muted" style="margin:0;font-size:15px">${G.Save.whereText()}</p>
-      ${graveyardHTML(data)}`;
-    drawTitleBg($('title-canvas'));
-    sc.onclick = (e) => {
-      const b = e.target.closest('button'); if (!b) return;
-      if (b.id === 'newchar') UI.showCreate();
-      else if (b.dataset.play != null) { data.last = +b.dataset.play; sc.hidden = true; Game.start(data.chars[+b.dataset.play]); }
-      else if (b.dataset.del != null) {
-        const c = data.chars[+b.dataset.del];
-        UI.confirm('Supprimer ' + c.name + ' ?', 'Ce héros et tout son équipement seront effacés définitivement.', 'Supprimer', () => { data.chars.splice(+b.dataset.del, 1); G.Save.save(true); UI.showTitle(); }, () => UI.showTitle());
-      }
-    };
-  };
-
-  function drawTitleBg(cv) {
-    const g = cv.getContext('2d'), S = G.S;
-    g.fillStyle = g.createPattern(S.paperPattern('#efe3c6'), 'repeat'); g.fillRect(0, 0, 1280, 720);
-    S.begin(11, true);
-    // montagnes et château esquissés
-    const pts = [[0, 600], [140, 470], [260, 560], [400, 430], [520, 540], [640, 470], [760, 560], [900, 420], [1040, 540], [1160, 460], [1280, 560], [1280, 720], [0, 720]];
-    S.poly(g, pts, { fill: '#d9c9a2', fillA: 0.7, w: 1.6, hatch: { sp: 9, c: '#6b5a46', a: 0.25, w: 0.8 } });
-    S.rect(g, 1010, 330, 120, 160, { fill: '#cbbd9a', w: 2 });
-    for (let i = 0; i < 4; i++) S.rect(g, 1010 + i * 32, 312, 18, 20, { fill: '#cbbd9a', w: 1.6 });
-    S.rect(g, 1150, 280, 50, 210, { fill: '#cbbd9a', w: 2 });
-    S.poly(g, [[1145, 282], [1175, 220], [1205, 282]], { fill: '#9b2c20', w: 1.8 });
-    S.rect(g, 1060, 440, 26, 50, { fill: '#6b4a2c', w: 1.6 });
-    S.poly(g, [[60, 330], [120, 250], [180, 330]], { fill: '#4f6a34', w: 1.6 });
-    S.poly(g, [[150, 360], [210, 270], [270, 360]], { fill: '#5d7a3a', w: 1.6 });
-    g.globalAlpha = 0.35; S.circle(g, 200, 120, 46, { fill: '#e8a33a', w: 1.5 }); g.globalAlpha = 1;
-    for (let i = 0; i < 5; i++) { const x = 380 + i * 60, y = 140 + (i % 2) * 22; S.line(g, x, y, x + 10, y - 6, 1.4); S.line(g, x + 10, y - 6, x + 20, y, 1.4); }
-  }
-
-  // ================= Création de personnage =================
-  UI.showCreate = function () {
-    const sc = $('screen');
-    sc.className = 'screen live'; sc.hidden = false;
-    let sel = 'guerrier';
-    const cards = D.CLASS_ORDER.map((k) => {
-      const C = D.CLASSES[k];
-      return `<div class="cls sk" data-cls="${k}" tabindex="0"><canvas width="90" height="80" data-prev="${k}"></canvas><h3>${C.name}</h3><div class="role">${C.role}</div><div class="role">Difficulté ${'●'.repeat(C.diff)}${'○'.repeat(3 - C.diff)}</div></div>`;
-    }).join('');
-    sc.innerHTML = `<h1 style="font-size:56px">Choisissez votre classe</h1>
-      <div class="classes">${cards}</div>
-      <div id="clsdesc"></div>
-      <div class="row"><label for="cname" style="font-size:20px">Nom du héros</label><input type="text" id="cname" maxlength="16" autocomplete="off" spellcheck="false" placeholder="Votre nom">
-      <button class="main" id="cgo">Commencer l'aventure</button><button id="cback">Retour</button></div>
-      <div class="row" style="gap:28px;font-size:18px"><label class="row" style="gap:8px"><input type="checkbox" id="cskip"> Passer le tutoriel</label>
-      <label class="row hcpick" style="gap:8px"><input type="checkbox" id="chc"> <b>Mode Hardcore</b> : une seule vie. À sa mort, le héros est effacé pour toujours.</label></div>
-      <div class="msg" id="cmsg" style="color:var(--blood)"></div>`;
-    sc.querySelectorAll('canvas[data-prev]').forEach((cv) => {
-      const g = cv.getContext('2d');
-      g.scale(1.6, 1.6);
-      G.R.unit(g, { id: 900 + D.CLASS_ORDER.indexOf(cv.dataset.prev), x: 28, y: 44, r: 13, look: cv.dataset.prev, isPlayer: true, facing: 1, aim: -0.4, walk: 0, swingT: 0, stunT: 0, hitT: 0 });
-    });
-    const upd = () => {
-      sc.querySelectorAll('.cls').forEach((c) => c.classList.toggle('sel', c.dataset.cls === sel));
-      const C = D.CLASSES[sel];
-      $('clsdesc').innerHTML = `<b style="font-family:var(--f-title);font-size:26px">${C.name}</b> — ${esc(C.desc)}<br><span class="muted">Vie ${C.hp} · Ressource : ${D.RES[C.res].name} · Sorts : ${C.abil.map((a) => a.name).join(', ')}</span>`;
-    };
-    upd();
-    sc.onclick = (e) => {
-      const c = e.target.closest('.cls');
-      if (c) { sel = c.dataset.cls; upd(); return; }
-      const b = e.target.closest('button'); if (!b) return;
-      if (b.id === 'cback') UI.showTitle();
-      if (b.id === 'cgo') {
-        const name = $('cname').value.trim();
-        if (name.length < 2) { $('cmsg').textContent = 'Le nom doit faire au moins 2 caractères.'; return; }
-        const skip = $('cskip').checked;
-        const ch = Game.newChar(name, sel, skip, $('chc').checked);
-        G.Save.data.chars.push(ch); G.Save.data.last = G.Save.data.chars.length - 1;
-        sc.hidden = true;
-        Game.start(ch);
-        if (skip) UI.toast('Bienvenue à Havre-Gris, ' + name + ' ! Parlez au Capitaine Aldric (Garnison).', '#4f6b2b', 6);
-      }
-    };
-    sc.onkeydown = (e) => { const c = e.target.closest && e.target.closest('.cls'); if (c && (e.key === 'Enter' || e.key === ' ')) { sel = c.dataset.cls; upd(); } };
-    $('chc').onchange = () => {
-      $('cgo').textContent = $('chc').checked ? 'Commencer (une seule vie)' : 'Commencer l\'aventure';
-      $('cgo').classList.toggle('danger-main', $('chc').checked);
-    };
-    setTimeout(() => $('cname').focus(), 50);
   };
 
   // ================= Scène =================
@@ -147,14 +46,33 @@
     $('portrait').textContent = C.name[0];
     $('portrait').style.background = C.color;
     $('resbar').querySelector('i').style.background = D.RES[C.res].color;
-    const slots = [{ k: 'Clic', s: 0 }, { k: '1', s: 1 }, { k: '2', s: 2 }, { k: '3', s: 3 }, { k: '4', s: 4 }, { k: '5', s: 5 }];
-    $('hotbar').innerHTML = slots.map((o) => {
-      const ab = Game.abilityDef(o.s);
-      return `<div class="slot" data-slot="${o.s}" data-tip="ab:${o.s}"><span class="key">${o.k}</span><span class="abbr">${ab.abbr}</span>${ab.cost ? `<span class="cost">${ab.cost}</span>` : ''}<div class="cd"></div><div class="cdt"></div></div>`;
-    }).join('') + `<div class="slot" data-slot="p" data-tip="potion" style="color:var(--blood)"><span class="key">R</span><span class="abbr">Po</span><span class="cost" id="potn"></span><div class="cd"></div><div class="cdt"></div></div>`;
+    $('hotbar').innerHTML = [0, 1, 2, 3, 4, 5].map((s) => {
+      const ab = Game.abilityDef(s);
+      return `<div class="slot" data-slot="${s}" data-tip="ab:${s}"><span class="key">${esc(slotKey(s))}</span><span class="abbr">${ab.abbr}</span>${ab.cost ? `<span class="cost">${ab.cost}</span>` : ''}<div class="cd"></div><div class="cdt"></div></div>`;
+    }).join('') + `<div class="slot" data-slot="p" data-tip="potion" style="color:var(--blood)"><span class="key">${esc(slotKey('p'))}</span><span class="abbr">Po</span><span class="cost" id="potn"></span><div class="cd"></div><div class="cdt"></div></div>`;
+    setHint();
     buffSig = null;
     lastTracker = 0;
     $('toasts').innerHTML = '';
+  };
+
+  // ================= Noms des touches dans l'interface =================
+  const slotKey = (s) => G.Input.shortLabel(s === 'p' ? 'potion' : +s === 0 ? 'attack' : 's' + s);
+  function spellKeys(sep) {
+    const ks = [1, 2, 3, 4, 5].map((n) => G.Input.shortLabel('s' + n));
+    return ks.join('') === '12345' ? (sep ? '1 à 5' : '1–5') : ks.join(sep || ' ');
+  }
+  function setHint() {
+    const h = $('hint'), In = G.Input;
+    if (h) h.textContent = `${In.moveLabel()} bouger · ${In.shortLabel('attack')} attaquer · ${spellKeys()} sorts · ${In.shortLabel('potion')} potion · ${In.shortLabel('interact')} interagir · ${In.shortLabel('inventory')} inventaire · ${In.shortLabel('menu')} menu`;
+  }
+  // Après un changement de touche : barre d'action, aide, panneau ouvert, tutoriel
+  UI.refreshLabels = function () {
+    if (!$('hint')) return;
+    setHint();
+    document.querySelectorAll('#hotbar .slot').forEach((el) => { const k = el.querySelector('.key'); if (k) k.textContent = slotKey(el.dataset.slot); });
+    if (panelId && panelId !== 'keys') UI.refreshPanel();
+    if (G.Tuto && G.Tuto.active() && Game.scene && Game.scene.kind === 'tuto') G.Tuto.refresh();
   };
 
   // ================= Mise à jour du HUD (chaque image) =================
@@ -254,12 +172,16 @@
     if (Game.mode !== 'play') return;
     panelId = id; forgeSel = null;
     $('panel').hidden = false;
-    if (id === 'menu') Game.paused = true;
+    if (id === 'menu' || id === 'keys' || id === 'options') Game.paused = true;
+    if (id !== 'keys') UI.capturing = null;
     UI.refreshPanel();
   };
   UI.closePanel = function () {
-    panelId = null; $('panel').hidden = true; $('tip').hidden = true; Game.paused = false;
+    UI.capturing = null;
+    UI.hidePanel();
+    Game.paused = false;
   };
+  UI.hidePanel = function () { panelId = null; $('panel').hidden = true; $('tip').hidden = true; };
   UI.refreshPanel = function () {
     if (!panelId) return;
     const f = PANELS[panelId];
@@ -342,7 +264,7 @@
         title: 'Boutique d\'Ysolde', sub: `Vous avez ${G.fmt(ch.gold)} or`,
         body: `<div class="say"><b>Ysolde :</b> « Potions fraîches, équipement d'occasion… Je rachète tout ce que tu rapportes des donjons. Mon stock change à chaque retour de donjon. »</div>
           <div class="cols"><div><div class="sectitle">À vendre</div><div class="grid" style="grid-template-columns:repeat(4,64px);row-gap:12px">${stock}</div>
-          <div class="sectitle" style="margin-top:14px">Potions de soin</div><p style="margin:0 0 8px">Rend ${Math.round(D.POTION_HEAL * 100)} % de votre vie (touche R, recharge ${D.POTION_CD} s). Vous en avez ${ch.potions} / ${D.MAX_POTIONS}.</p>
+          <div class="sectitle" style="margin-top:14px">Potions de soin</div><p style="margin:0 0 8px">Rend ${Math.round(D.POTION_HEAL * 100)} % de votre vie (touche ${esc(G.Input.label('potion'))}, recharge ${D.POTION_CD} s). Vous en avez ${ch.potions} / ${D.MAX_POTIONS}.</p>
           <button class="main" data-potion="1" ${ch.potions >= D.MAX_POTIONS || ch.gold < pp ? 'disabled' : ''}>Acheter une potion (${pp} or)</button></div>
           <div><div class="sectitle">Votre sac — clic pour vendre</div>${bagGrid()}<div class="row" style="margin-top:10px"><button data-sellgrey="1">Vendre tous les objets communs (gris)</button></div><div class="msg" id="smsg"></div></div></div>`,
       };
@@ -411,14 +333,29 @@
       };
     },
     menu() {
-      const inD = Game.scene.kind === 'dungeon';
+      const inD = Game.scene.kind === 'dungeon', In = G.Input;
+      const kbd = (t) => `<kbd>${esc(t)}</kbd>`;
+      const keys = (id) => In.codes(id).map((c) => kbd(In.codeLabel(c))).join(' / ') || '<span style="color:var(--blood)">aucune touche</span>';
+      const arrows = ['up', 'left', 'down', 'right'].map((a) => In.binds[a][1]).join() === 'ArrowUp,ArrowLeft,ArrowDown,ArrowRight';
+      const sp = [1, 2, 3, 4, 5].map((n) => In.shortLabel('s' + n));
+      const spells = sp.join('') === '12345' ? kbd('1') + ' à ' + kbd('5') : sp.map(kbd).join(' ');
+      const rows = [[kbd(In.moveLabel()) + (arrows ? ' / flèches' : ''), 'Se déplacer'], [keys('attack'), 'Attaque de base vers le curseur (maintenir)'], [spells, 'Sorts (visés au curseur)'],
+        [keys('potion'), 'Boire une potion'], [keys('interact'), 'Parler, ouvrir, utiliser'], [keys('inventory'), 'Inventaire'], [keys('menu'), 'Fermer / menu']];
       return {
         title: 'Pause', sub: inD ? 'Le jeu est en pause' : 'Havre-Gris',
-        body: `<div class="cols" style="grid-template-columns:300px 1fr"><div class="list"><button class="main" data-menu="resume">Reprendre</button><button data-menu="title">${inD ? 'Abandonner et revenir au titre' : 'Revenir à l\'écran titre'}</button>
+        body: `<div class="cols" style="grid-template-columns:300px 1fr"><div class="list"><button class="main" data-menu="resume">Reprendre</button>
+          <button data-menu="keys">Touches</button><button data-menu="options">Options</button>
+          <button data-menu="title">${inD ? 'Abandonner et revenir au titre' : 'Revenir à l\'écran titre'}</button>
           ${inD ? '<p class="muted" style="font-size:15px;margin:0">Abandonner : le butin trouvé dans ce donjon est perdu (sans les autres pénalités de mort).</p>' : '<p class="muted" style="font-size:15px;margin:0">La partie est sauvegardée automatiquement en ville.</p>'}</div>
-          <div><div class="sectitle">Commandes</div><div class="stats" style="grid-template-columns:auto 1fr"><span>Z Q S D / flèches</span><span>Se déplacer</span><span>Clic gauche (maintenu)</span><span>Attaque de base vers le curseur</span><span>1 à 5</span><span>Sorts (visés au curseur)</span><span>R</span><span>Boire une potion</span><span>E</span><span>Parler, ouvrir, utiliser</span><span>TAB</span><span>Inventaire</span><span>Échap</span><span>Fermer / menu</span></div>
-          <p class="muted" style="font-size:15px">Les zones hachurées rouges annoncent une attaque : sortez-en avant qu'elles soient pleines.</p></div></div>`,
+          <div><div class="sectitle">Commandes</div><div class="cmds">${rows.map(([k, t]) => `<span>${k}</span><span>${t}</span>`).join('')}</div>
+          <p class="muted" style="font-size:15px">Les zones hachurées rouges annoncent une attaque : sortez-en avant qu'elles soient pleines. Les touches se changent dans « Touches ».</p></div></div>`,
       };
+    },
+    keys() {
+      return { title: 'Touches', sub: 'Le jeu est en pause', body: `<div class="row" style="margin-bottom:8px"><button data-menu="back">← Retour au menu</button></div>${UI.keysBody()}` };
+    },
+    options() {
+      return { title: 'Options', sub: 'Le jeu est en pause', body: `<div class="row" style="margin-bottom:8px"><button data-menu="back">← Retour au menu</button></div>${UI.optionsBody()}` };
     },
   };
 
@@ -427,6 +364,9 @@
   function onPanelClick(e) {
     const ch = Game.char;
     const b = e.target.closest('button');
+    if (panelId === 'keys' && UI.keysClick(e, () => UI.refreshPanel())) return;
+    if (b && (b.dataset.menu === 'keys' || b.dataset.menu === 'options')) { UI.openPanel(b.dataset.menu); return; }
+    if (b && b.dataset.menu === 'back') { UI.openPanel('menu'); return; }
     const cell = e.target.closest('.cell[data-ref]');
     const dun = e.target.closest('[data-dun]');
     if (dun) { const d = D.DUNGEONS[+dun.dataset.dun - 1]; UI.closePanel(); Game.enterDungeon(d); return; }
@@ -492,7 +432,7 @@
     let h = '';
     if (ref.startsWith('it:')) h = itemTip(ref.slice(3));
     else if (ref.startsWith('ab:')) h = abilTip(+ref.slice(3));
-    else if (ref === 'potion') h = `<h4 style="color:var(--blood)">Potion de soin</h4>Rend ${Math.round(D.POTION_HEAL * 100)} % de votre vie. Recharge : ${D.POTION_CD} s.<br>Vous en avez ${Game.char.potions} / ${D.MAX_POTIONS}. En vente chez Ysolde.`;
+    else if (ref === 'potion') h = `<h4 style="color:var(--blood)">Potion de soin</h4><div class="muted">Touche ${esc(G.Input.label('potion'))}</div><hr>Rend ${Math.round(D.POTION_HEAL * 100)} % de votre vie. Recharge : ${D.POTION_CD} s.<br>Vous en avez ${Game.char.potions} / ${D.MAX_POTIONS}. En vente chez Ysolde.`;
     if (!h) { tip.hidden = true; return; }
     tip.innerHTML = h; tip.hidden = false;
     const r = el.getBoundingClientRect(), sr = $('stage').getBoundingClientRect(), sc = sr.width / 1280;
@@ -529,7 +469,7 @@
     const rank = slot === 0 ? 1 : ch.abil[slot] || 0;
     let req = '';
     if (slot > 0 && !rank) { const u = D.UNLOCK[slot]; req = `<div style="color:var(--blood)">À apprendre à l'Académie (niveau ${u.lvl}, ${u.gold} or)</div>`; }
-    return `<h4>${ab.name}</h4><div class="muted">${slot === 0 ? 'Attaque de base · clic gauche' : 'Touche ' + slot + (rank ? ' · rang ' + rank + '/3' : '')}</div><hr>
+    return `<h4>${ab.name}</h4><div class="muted">${slot === 0 ? 'Attaque de base · ' + esc(G.Input.label('attack')) : 'Touche ' + esc(G.Input.label('s' + slot)) + (rank ? ' · rang ' + rank + '/3' : '')}</div><hr>
       ${ab.desc ? esc(ab.desc) : 'Votre attaque principale, dirigée vers le curseur.'}<hr>
       <div class="ln"><span>Coût</span><span>${ab.cost ? ab.cost + ' ' + D.RES[C.res].name.toLowerCase() : 'aucun'}</span></div><div class="ln"><span>Recharge</span><span>${String(ab.cd).replace('.', ',')} s</span></div>${req}`;
   }
@@ -549,13 +489,6 @@
   };
   UI.closeConfirm = function () { const sc = $('screen'); if (!sc.hidden && sc.classList.contains('dim') && sc.querySelector('#cno')) { sc.querySelector('#cno').click(); return true; } return false; };
 
-  function graveyardHTML(data) {
-    const g = (data.graveyard || []).slice(0, 4);
-    if (!g.length) return '';
-    return `<div id="graveyard" class="sk"><h3>Cimetière des héros</h3><ul>${g.map((m) =>
-      `<li><b>${esc(m.name)}</b> — ${D.CLASSES[m.cls] ? D.CLASSES[m.cls].name : ''} niv. ${m.lvl} · ${esc(m.place)} · cause de la mort : ${esc(m.cause)}</li>`).join('')}</ul></div>`;
-  }
-
   UI.showHardcoreDeath = function (m) {
     UI.closePanel();
     const sc = $('screen');
@@ -567,7 +500,7 @@
       <span>Donjons vaincus</span><span>${m.cleared} / 15</span><span>Monstres vaincus</span><span>${G.fmt(m.kills)}</span>
       <span>Lieu</span><span>${esc(m.place)}</span><span>Cause de la mort</span><span>${esc(m.cause)}</span>
       <span>Temps de jeu</span><span>${h ? h + ' h ' : ''}${min} min</span></div>
-      <p class="muted" style="margin:0">Son nom est gravé au Cimetière des héros, sur l'écran titre.</p>
+      <p class="muted" style="margin:0">Son nom est gravé au Cimetière des héros (menu de l'écran titre).</p>
       <button class="main" id="hcgo">Retour à l'écran titre</button></div>`;
     sc.onclick = (e) => { if (e.target.id === 'hcgo') UI.showTitle(); };
   };

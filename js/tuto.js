@@ -6,20 +6,20 @@
 
   const STEPS = [
     { id: 'move', need: 260, goal: 'yard', brenna: [14, 11],
-      text: 'Déplacez-vous avec Z Q S D (ou les flèches du clavier). Suivez la flèche jaune.',
+      text: 'Déplacez-vous avec {move}. Suivez la flèche jaune.',
       say: 'Bienvenue, recrue ! Avant d\'entrer à Havre-Gris, je vérifie que tu sais te battre. Marche un peu, que je voie tes jambes.' },
     { id: 'attack', need: 8, goal: 'dummy', brenna: [15, 13],
-      text: 'Visez un mannequin avec la souris et MAINTENEZ le clic gauche pour attaquer.',
-      say: 'Bien. Frappe ces mannequins : vise avec la souris et garde le bouton enfoncé.' },
+      text: 'Visez un mannequin avec la souris et MAINTENEZ {attack} pour attaquer.',
+      say: 'Bien. Frappe ces mannequins : vise avec la souris et garde {attack} enfoncé.' },
     { id: 'spells', need: 2, goal: 'dummy', brenna: [15, 13],
-      text: 'Lancez vos sorts avec les touches 1 et 2. Chaque sort coûte de la ressource (barre sous la vie) et se recharge.',
-      say: 'Ton attaque de base ne suffira pas. Utilise tes techniques : touches 1 et 2.' },
+      text: 'Lancez vos sorts avec {s1} et {s2}. Chaque sort coûte de la ressource (barre sous la vie) et se recharge.',
+      say: 'Ton attaque de base ne suffira pas. Utilise tes techniques : {s1} et {s2}.' },
     { id: 'dodge', need: 3, goal: 'rune', brenna: [29, 9],
       text: 'Approchez de la pierre runique. Les zones rouges hachurées annoncent une attaque : sortez-en avant qu\'elles soient pleines ! (3 esquives)',
       say: 'Cette pierre lance des sorts. Ne reste JAMAIS dans une zone rouge. Les monstres font pareil, en pire.' },
     { id: 'potion', need: 1, goal: null, brenna: [29, 9],
-      text: 'Vous êtes blessé : appuyez sur R pour boire une potion (+30 % de vie, recharge 15 s).',
-      say: 'Aïe, tu saignes. Bois une potion : touche R. Tu n\'en auras jamais assez, alors économise-les.' },
+      text: 'Vous êtes blessé : appuyez sur {potion} pour boire une potion (+30 % de vie, recharge 15 s).',
+      say: 'Aïe, tu saignes. Bois une potion : {potion}. Tu n\'en auras jamais assez, alors économise-les.' },
     { id: 'fight', need: 3, goal: 'rats', brenna: [42, 12],
       text: 'Des rats ont envahi la réserve ! Éliminez-les tous.',
       say: 'Des rats dans la réserve ! Nettoie-moi ça. Eux sont faibles… les monstres des donjons, non.' },
@@ -27,16 +27,19 @@
       text: 'Un rat a laissé tomber un objet. Marchez dessus pour le ramasser.',
       say: 'Tiens, il avait quelque chose sur lui. Ramasse-le.' },
     { id: 'equip', need: 1, goal: null, brenna: [42, 12],
-      text: 'Appuyez sur TAB pour ouvrir l\'inventaire, puis cliquez sur le nouvel objet pour l\'équiper.',
-      say: 'Un héros mal équipé est un héros mort. TAB pour ton sac, clic pour équiper.' },
+      text: 'Appuyez sur {inventory} pour ouvrir l\'inventaire, puis cliquez sur le nouvel objet pour l\'équiper.',
+      say: 'Un héros mal équipé est un héros mort. {inventory} pour ton sac, clic pour équiper.' },
     { id: 'gate', need: 1, goal: 'gate', brenna: [55, 14],
-      text: 'Parfait ! Allez à la porte de Havre-Gris (à l\'est) et appuyez sur E pour entrer en ville.',
+      text: 'Parfait ! Allez à la porte de Havre-Gris (à l\'est) et appuyez sur {interact} pour entrer en ville.',
       say: 'Tu as tout ce qu\'il faut. Va à la porte. Et souviens-toi : là-bas, la mort coûte cher.' },
   ];
   Tuto.STEPS = STEPS;
 
   const brenna = () => Game.scene && Game.scene.npcs.find((n) => n.role === 'brenna');
-  const say = (text, t) => { const b = brenna(); if (b) b.bubble = { text, t: t || 6 }; };
+  // remplace {move}, {s1}, {potion}… par les touches choisies par le joueur
+  const fill = (txt) => txt.replace(/\{(\w+)\}/g, (m, k) => (k === 'move' ? G.Input.moveLabel() : G.Input.label(k)));
+  Tuto.fill = fill;
+  const say = (text, t) => { const b = brenna(); if (b) b.bubble = { text: fill(text), t: t || 6 }; };
   const units = (f) => Game.scene.units.filter(f);
 
   Tuto.start = function () {
@@ -44,6 +47,7 @@
     next();
   };
   Tuto.stop = function () { st = null; G.UI.tuto(null); };
+  Tuto.refresh = () => refresh();
   Tuto.active = () => !!st;
   Tuto.noRegen = () => !!st && STEPS[st.i] && STEPS[st.i].id === 'potion';
 
@@ -88,7 +92,7 @@
     let prog = '';
     if (s.id === 'move') prog = Math.min(100, Math.round((100 * st.n) / s.need)) + ' %';
     else if (s.need > 1) prog = Math.min(st.n, s.need) + ' / ' + s.need;
-    G.UI.tuto({ step: st.i + 1, total: STEPS.length, text: s.text, prog });
+    G.UI.tuto({ step: st.i + 1, total: STEPS.length, text: fill(s.text), prog });
   }
 
   Tuto.event = function (ev, data) {
