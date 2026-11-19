@@ -1,6 +1,6 @@
 // Grimoire des âmes du nécromancien (touche F, ou case « Âme » de la barre d'action) :
 // - les âmes des boss vaincus (une invocation par donjon, mana bloqué, boss très affaibli) ;
-// - les meutes : n'importe quel monstre vaincu, invoqué par 5 (60 de mana, recharge de 45 s).
+// - les meutes : n'importe quel monstre déjà réanimé avec « Relever les morts », invoqué par 5 (60 de mana, recharge de 45 s).
 (function () {
   const D = G.D, Game = G.Game, UI = G.UI, R = G.R;
   const esc = G.esc;
@@ -62,13 +62,13 @@
   Souls.tip = function () {
     const st = Souls.state(), key = esc(G.Input.label('summon')), P = Game.PACK;
     let now = [];
-    if (!st.any) now.push('Grimoire vide : vainquez des monstres et des boss pour qu\'ils le rejoignent.');
+    if (!st.any) now.push('Grimoire vide : vainquez des boss et réanimez des monstres pour qu\'ils le rejoignent.');
     if (st.out) now.push('<span style="color:var(--heal)">' + esc(st.out.def.name) + ' vous accompagne. Mana bloqué.</span>');
     else if (st.used) now.push('Âme de boss déjà invoquée dans ce donjon.');
     if (st.packCd > 0) now.push('Meutes : encore ' + Math.ceil(st.packCd) + ' s.');
     return `<h4>Grimoire des âmes</h4><div class="muted">Touche ${key} (Maj + ${key} : la dernière meute)</div><hr>
       <b>Boss vaincus</b> : un par donjon, jamais en ville ni dans la salle d'un boss ; tout le mana est bloqué tant qu'il est là.<br>
-      <b>Meutes</b> : n'importe quel monstre vaincu, par ${P.n}, pour ${P.cost} de mana (recharge ${P.cd} s).${now.length ? '<hr>' + now.join('<br>') : ''}`;
+      <b>Meutes</b> : les monstres que vous avez réanimés, par ${P.n}, pour ${P.cost} de mana (recharge ${P.cd} s).${now.length ? '<hr>' + now.join('<br>') : ''}`;
   };
 
   // ----- la fenêtre -----
@@ -98,8 +98,8 @@
       const m = D.MONSTERS[t], st = Game.packStats(t, lvl), o = originOf(t);
       return `<div class="soul small"><img src="${portrait(t, false, 112)}" alt=""><b>${esc(m.name)}</b><small>${o < 99 ? 'Donjon ' + o + ' · ' : ''}×${P.n} · vie ${G.fmt(st.hp)} · dégâts ${G.fmt(st.dmg)}</small><button class="main" data-pack="${esc(t)}" ${why ? 'disabled title="' + esc(why) + '"' : ''}>Invoquer</button></div>`;
     }).join('');
-    return `<p class="muted" style="margin:0 0 8px;font-size:16px">N'importe quel monstre que vous avez vaincu, par ${P.n}, pour ${P.cost} de mana (recharge ${P.cd} s), autant de fois que vous voulez dans les donjons. Ils ont ${Math.round(P.hp * 100)} % de leur vie et ${Math.round(P.dmg * 100)} % de leurs dégâts, au niveau du donjon (${lvl}). Ils restent jusqu'à leur mort, ou la vôtre ; ${P.max} au plus en même temps (les plus anciens repartent). Maj + ${esc(G.Input.label('summon'))} : invoquer la dernière meute.</p>${status}
-      ${cards ? `<div class="soulgrid packs">${cards}</div>` : '<p>Aucun monstre vaincu pour l\'instant.</p>'}${unknown > 0 ? `<p class="muted" style="margin:8px 0 0">${unknown} monstre${unknown > 1 ? 's' : ''} encore inconnu${unknown > 1 ? 's' : ''} : vainquez-les pour qu'ils rejoignent le grimoire.</p>` : ''}`;
+    return `<p class="muted" style="margin:0 0 8px;font-size:16px">Les monstres que vous avez déjà réanimés avec « Relever les morts », par ${P.n}, pour ${P.cost} de mana (recharge ${P.cd} s), autant de fois que vous voulez dans les donjons. Ils ont ${Math.round(P.hp * 100)} % de leur vie et ${Math.round(P.dmg * 100)} % de leurs dégâts, au niveau du donjon (${lvl}). Ils restent jusqu'à leur mort, ou la vôtre ; ${P.max} au plus en même temps (les plus anciens repartent). Maj + ${esc(G.Input.label('summon'))} : invoquer la dernière meute.</p>${status}
+      ${cards ? `<div class="soulgrid packs">${cards}</div>` : '<p>Aucun monstre réanimé pour l\'instant : utilisez « Relever les morts » sur un cadavre.</p>'}${unknown > 0 ? `<p class="muted" style="margin:8px 0 0">${unknown} monstre${unknown > 1 ? 's' : ''} pas encore réanimé${unknown > 1 ? 's' : ''} : relevez-les une fois pour qu'ils rejoignent le grimoire.</p>` : ''}`;
   }
   UI.PANELS.grimoire = function () {
     const ch = Game.char;

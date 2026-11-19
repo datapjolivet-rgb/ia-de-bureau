@@ -18,7 +18,7 @@
     return {
       name, cls, lvl: 1, xp: 0, gold: 40, potions: 3,
       equip: { arme: I.make({ cls, slot: 'arme', rarity: 0, ilvl: 1 }), torse: I.make({ cls, slot: 'torse', rarity: 0, ilvl: 1 }) },
-      bag: [], abil: { 1: 1, 2: 1 }, talents: {}, quests: {}, cleared: 0, boundBoss: null, deaths: 0, kills: {}, shop: null,
+      bag: [], abil: { 1: 1, 2: 1 }, talents: {}, quests: {}, cleared: 0, boundBoss: null, deaths: 0, kills: {}, raised: {}, shop: null,
       tuto: skipTuto ? 'done' : 'todo', hardcore: !!hardcore, time: 0, created: Date.now(),
     };
   };
@@ -711,7 +711,7 @@
     const u = Game.soulOut();
     if (u) soulGone(u, 'Les âmes n\'entrent pas dans l\'antre d\'un boss : ' + u.def.name + ' retourne au grimoire.');
   }
-  // ----- Meutes : n'importe quel monstre vaincu, invoqué par 5 -----
+  // ----- Meutes : n'importe quel monstre que le nécromancien a déjà réanimé (« Relever les morts »), invoqué par 5 -----
   // 60 de mana, recharge de 45 s ; aussi forts que les morts relevés (60 % de vie, 65 % de dégâts, au niveau du donjon).
   // Ils restent jusqu'à leur mort, ou celle du nécromancien. 10 au plus en même temps (les plus anciens repartent).
   const PACK = (Game.PACK = { n: 5, cost: 60, cd: 45, max: 10, hp: 0.6, dmg: 0.65 });
@@ -719,7 +719,7 @@
   Game.packTypes = function (ch) {
     ch = ch || Game.char;
     if (!ch || ch.cls !== 'necromancien') return [];
-    return Object.keys(D.MONSTERS).filter((t) => packable(D.MONSTERS[t]) && (ch.kills[t] || 0) > 0);
+    return Object.keys(D.MONSTERS).filter((t) => packable(D.MONSTERS[t]) && ((ch.raised || {})[t] || 0) > 0);
   };
   Game.packAll = () => Object.keys(D.MONSTERS).filter((t) => packable(D.MONSTERS[t]));
   Game.packLvl = () => { const sc = Game.scene; return sc && sc.kind === 'dungeon' && sc.def ? sc.def.lvl + 1 : Math.max(1, (Game.char ? Game.char.lvl : 1) - 2); };
@@ -1003,6 +1003,10 @@
       const m = makeMinion(k.type, k.x, k.y, k.lvl, k.elite, k.boss);
       sc.units.push(m);
       text(k.x, k.y - 40, k.boss ? 'LE BOSS SE RELÈVE !' : 'Relevé !', '#3f7d2a', k.boss ? 30 : 22, 2);
+      // le grimoire retient chaque monstre réanimé : il pourra ensuite l'invoquer en meute
+      const ch = Game.char; ch.raised = ch.raised || {};
+      if (!k.boss && !ch.raised[k.type] && D.MONSTERS[k.type] && packable(D.MONSTERS[k.type])) G.UI.toast(D.MONSTERS[k.type].name + ' rejoint votre grimoire : vous pourrez l\'invoquer en meute.', '#3f7d2a', 3.5);
+      ch.raised[k.type] = (ch.raised[k.type] || 0) + 1;
       ring(k.x, k.y, 60, '#5bd04a', 0.5);
       parts(k.x, k.y, 14, '#5bd04a', 'spark', 120);
       if (k.boss) { Game.char.boundBoss = k.type; G.UI.toast(m.name + ' vous servira pendant votre prochain donjon !', '#3f7d2a', 5); }
