@@ -41,7 +41,7 @@ Le Roi Cendré a brisé le Sceau des Quinze. Ses quinze lieutenants gardent chac
 
 ## Vidéo de présentation
 
-Vidéo verticale de 30 secondes pour TikTok, Instagram Reels et YouTube Shorts (1080 × 1920) : `promo/valdorne-promo.mp4` (avec musique) et `promo/valdorne-promo-sans-musique.mp4` (pour ajouter un son depuis l'application). Toutes les images viennent du jeu.
+Vidéo verticale de 24 secondes pour TikTok, Instagram Reels et YouTube Shorts (1080 × 1920) : les 10 classes, 5 boss, le jeu à plusieurs et l'application sur téléphone : `promo/valdorne-promo.mp4` (avec musique) et `promo/valdorne-promo-sans-musique.mp4` (pour ajouter un son depuis l'application). Toutes les images viennent du jeu.
 
 ## Jeu en ligne
 
