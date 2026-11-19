@@ -39,6 +39,10 @@ Le Roi Cendré a brisé le Sceau des Quinze. Ses quinze lieutenants gardent chac
 - **Mode Hardcore** (au choix à la création) : une seule vie. À sa mort, le héros est effacé pour toujours et son nom est gravé au Cimetière des héros.
 - **Jeu en ligne** (sur le site du jeu, voir plus bas) : les héros connectés se croisent à Havre-Gris, discutent, forment des groupes de 4 et explorent les donjons ensemble.
 
+## Vidéo de présentation
+
+Vidéo verticale de 30 secondes pour TikTok, Instagram Reels et YouTube Shorts (1080 × 1920) : `promo/valdorne-promo.mp4` (avec musique) et `promo/valdorne-promo-sans-musique.mp4` (pour ajouter un son depuis l'application). Toutes les images viennent du jeu.
+
 ## Jeu en ligne
 
 Le jeu en ligne fonctionne sur https://valdorne.chroniques-valdorne.workers.dev, où le jeu est servi par son serveur (dossier `server/`, voir « Mettre le jeu en ligne »). Dans l'artefact claude.ai ou en ouvrant les fichiers en local, le jeu reste en solo. L'option « Jouer en ligne » (Options) permet aussi de jouer hors ligne.
