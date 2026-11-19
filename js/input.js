@@ -73,9 +73,33 @@
     return l.length > 6 ? l.slice(0, 5) + '.' : l;
   };
   Input.codes = (action) => (Input.binds[action] || []).filter(Boolean);
-  Input.label = (action) => { const c = Input.codes(action); return c.length ? Input.codeLabel(c[0]) : 'non attribuée'; };
-  Input.shortLabel = (action) => { const c = Input.codes(action); return c.length ? Input.short(c[0]) : '—'; };
+  // ---------- Manette et écran tactile ----------
+  // mode d'entrée actuel : 'kb' (clavier et souris), 'pad' (manette) ou 'touch' (écran tactile)
+  Input.mode = 'kb';
+  Input.PAD = { attack: 'RT', s1: 'X', s2: 'Y', s3: 'B', s4: 'RB', s5: 'LT', potion: 'LB', interact: 'A', inventory: 'Vue', menu: 'Menu', summon: '↓', social: '←', chat: '—', creator: '—' };
+  Input.TOUCH = { attack: '⚔', s1: '1', s2: '2', s3: '3', s4: '4', s5: '5', potion: 'Potion', interact: 'Action', inventory: 'Sac', menu: '☰', summon: 'Âme', social: 'Joueurs', chat: 'Discuter', creator: '—' };
+  Input.setMode = function (m) {
+    if (Input.mode === m) return;
+    Input.mode = m;
+    document.body.classList.toggle('padmode', m === 'pad');
+    document.body.classList.toggle('touchmode', m === 'touch');
+    if (G.UI && G.UI.refreshLabels) G.UI.refreshLabels();
+  };
+  // commande virtuelle (manette, écran tactile) : déplacement analogique et actions maintenues
+  G.Virt = { mx: 0, my: 0, held: {} };
+  Input.label = (action) => {
+    if (Input.mode === 'pad' && Input.PAD[action]) return Input.PAD[action];
+    if (Input.mode === 'touch' && Input.TOUCH[action]) return Input.TOUCH[action];
+    const c = Input.codes(action); return c.length ? Input.codeLabel(c[0]) : 'non attribuée';
+  };
+  Input.shortLabel = (action) => {
+    if (Input.mode === 'pad' && Input.PAD[action]) return Input.PAD[action];
+    if (Input.mode === 'touch' && Input.TOUCH[action]) return Input.TOUCH[action];
+    const c = Input.codes(action); return c.length ? Input.short(c[0]) : '—';
+  };
   Input.moveLabel = function () {
+    if (Input.mode === 'pad') return 'Stick gauche';
+    if (Input.mode === 'touch') return 'Joystick';
     const ks = ['up', 'left', 'down', 'right'].map((a) => Input.codes(a)[0]);
     const ls = ks.map((c) => Input.codeLabel(c));
     return ls.every((l) => l.length === 1) ? ls.join('') : ls.join(' ');
@@ -83,6 +107,7 @@
   Input.actionsFor = (code) => Input.ACTIONS.filter((a) => (Input.binds[a.id] || []).includes(code)).map((a) => a.id);
   Input.held = function (action) {
     const Game = G.Game;
+    if (G.Virt.held[action]) return true;
     return Input.codes(action).some((c) => (c.startsWith('Mouse') ? (c === 'Mouse0' && Game.mouse.down) || (Game.mbtn && Game.mbtn[c]) : Game.keys[c]));
   };
 

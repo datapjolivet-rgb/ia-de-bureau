@@ -89,6 +89,34 @@ Touches par défaut (modifiables dans « Touches », sur l'écran titre ou dans 
 | TAB ou I | Inventaire |
 | Échap | Fermer / menu |
 
+### Manette
+
+Une manette standard (Xbox, PlayStation…) fonctionne dès qu'on appuie sur un bouton.
+
+| Bouton | Action |
+|---|---|
+| Stick gauche | Se déplacer |
+| Stick droit | Viser (sans lui, la visée se fait seule sur l'ennemi le plus proche) |
+| RT | Attaque de base (maintenir) |
+| X, Y, B, RB, LT | Sorts 1 à 5 |
+| LB | Potion |
+| A | Parler, ouvrir, utiliser |
+| Vue / Menu | Inventaire / menu |
+| Croix ↓ / ← / ↑ | Grimoire des âmes / joueurs en ligne / répondre à une invitation |
+| Dans les menus | Croix pour choisir, A pour valider, B pour revenir, X pour jeter un objet |
+
+À la création d'un héros, le bouton « Au hasard » propose un nom (pratique sans clavier).
+
+### Téléphone et tablette
+
+Le jeu se joue en mode paysage (un message demande de tourner le téléphone s'il est tenu droit).
+
+- Posez le pouce gauche n'importe où sur la gauche de l'écran : un joystick apparaît pour se déplacer.
+- À droite : ⚔ attaque (maintenir), les 5 sorts, la potion. La visée est automatique sur l'ennemi le plus proche ; les sorts de déplacement partent dans la direction du joystick ; « Relever les morts » vise le cadavre le plus proche.
+- Le bouton « Action » apparaît près d'un personnage, d'un coffre ou d'un portail.
+- En bas : Menu, Sac (inventaire), Joueurs, Discuter (en ligne) et Plein écran (si le navigateur le permet).
+- Dans l'inventaire, la boutique ou la forge : un premier toucher montre l'objet, un second l'utilise ; un appui long permet de le jeter.
+
 ## Lancer le jeu en local
 
 Le jeu n'a besoin d'aucune installation : ce sont des fichiers HTML et JavaScript.
@@ -117,7 +145,9 @@ Puis ouvrir http://localhost:8000 dans un navigateur. Ainsi, le jeu est en solo 
 | `js/ui.js` | Interface en jeu : HUD, inventaire, boutiques, quêtes, menu pause |
 | `js/menu.js` | Menu de départ animé, héros, création, touches, options, cimetière |
 | `js/creator.js` | Mode créateur : tous les objets, héros au maximum, donjons, monstres à volonté |
-| `js/souls.js` | Grimoire des âmes du nécromancien : boss vaincus à invoquer |
+| `js/souls.js` | Grimoire des âmes du nécromancien : boss et meutes de monstres à invoquer |
+| `js/pad.js` | Manette : déplacement, visée, sorts, navigation dans les menus |
+| `js/touch.js` | Écran tactile : joystick, boutons d'action, visée automatique |
 | `js/net.js` | Jeu en ligne : connexion, autres héros en ville, discussion, groupes, liste des joueurs |
 | `js/coop.js` | Donjons en groupe : état des monstres envoyé par le chef, attaques partagées, mort en groupe |
 | `js/main.js` | Démarrage, sauvegarde, clavier et souris |

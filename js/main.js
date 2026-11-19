@@ -85,7 +85,15 @@
   // ================= Souris =================
   const cv = $('cv');
   const ctx = cv.getContext('2d');
+  // souris et clavier : on repasse en mode « clavier » (sauf événements simulés après un toucher)
+  let lastTouch = 0;
+  window.addEventListener('touchstart', () => { lastTouch = performance.now(); }, { capture: true, passive: true });
+  const realMouse = (e) => e.isTrusted && performance.now() - lastTouch > 900 && !(e.sourceCapabilities && e.sourceCapabilities.firesTouchEvents);
+  window.addEventListener('mousemove', (e) => { if (realMouse(e) && (Math.abs(e.movementX) + Math.abs(e.movementY) > 2)) G.Input.setMode('kb'); }, true);
+  window.addEventListener('mousedown', (e) => { if (realMouse(e)) G.Input.setMode('kb'); }, true);
+  window.addEventListener('keydown', (e) => { if (e.isTrusted) G.Input.setMode('kb'); }, true);
   stage.addEventListener('mousemove', (e) => {
+    if (!realMouse(e) && G.Input.mode !== 'kb') return;
     const r = stage.getBoundingClientRect();
     G.Game.mouse.x = ((e.clientX - r.left) / r.width) * 1280;
     G.Game.mouse.y = ((e.clientY - r.top) / r.height) * 720;
@@ -93,6 +101,7 @@
   G.Game.mbtn = {};
   cv.addEventListener('mousedown', (e) => {
     if (G.UI.capturing) return;
+    if (!realMouse(e) && G.Input.mode === 'touch') return; // un toucher sur le décor ne fait pas attaquer
     if (e.button > 2) e.preventDefault();
     const code = 'Mouse' + e.button;
     G.Game.mbtn[code] = true;
@@ -122,17 +131,26 @@
 
   // Déclenche les actions liées à une touche (sorts, potion, interaction)
   function pressActions(code) {
+    for (const a of G.Input.actionsFor(code)) G.act(a, true);
+  }
+  // Une action du jeu, quel que soit le périphérique (clavier, manette, écran tactile).
+  // fromKey : appelée par le clavier, qui gère lui-même l'inventaire, le menu, etc.
+  G.act = function (a, fromKey) {
     const Game = G.Game, UI = G.UI;
     if (Game.mode !== 'play' || !$('screen').hidden) return;
     const panel = UI.currentPanel();
     const blocking = panel === 'menu' || panel === 'keys' || panel === 'options' || panel === 'creator';
-    for (const a of G.Input.actionsFor(code)) {
-      const m = /^s([1-5])$/.exec(a);
-      if (m && !blocking) Game.useAbility(+m[1]);
-      else if (a === 'potion' && !blocking) Game.drinkPotion();
-      else if (a === 'interact' && !panel) Game.interact();
-    }
-  }
+    const m = /^s([1-5])$/.exec(a);
+    if (m) { if (!blocking) Game.useAbility(+m[1]); return; }
+    if (a === 'potion') { if (!blocking) Game.drinkPotion(); return; }
+    if (a === 'interact') { if (!panel) Game.interact(); return; }
+    if (fromKey) return;
+    if (a === 'inventory') { if (panel === 'inventory') UI.closePanel(); else if (!blocking) UI.openPanel('inventory'); }
+    else if (a === 'menu') { if (panel === 'menu') UI.closePanel(); else if (panel === 'keys' || panel === 'options') UI.openPanel('menu'); else if (panel) UI.closePanel(); else UI.openPanel('menu'); }
+    else if (a === 'summon') { if (!blocking && G.Souls) G.Souls.toggle(); }
+    else if (a === 'social') { if (panel === 'players') UI.closePanel(); else if (!blocking && G.Net && G.Net.available) UI.openPanel('players'); }
+    else if (a === 'chat') { if (G.Net && G.Net.online && !panel) G.Net.openChat(); }
+  };
 
   // ================= Clavier =================
   const NO_SCROLL = ['Space', 'Tab', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'];
@@ -198,6 +216,7 @@
   function frame(t) {
     const dt = Math.min(0.05, (t - last) / 1000);
     last = t;
+    try { if (G.Pad) G.Pad.update(dt); if (G.Touch) G.Touch.update(dt); } catch (err) { console.error(err); }
     try {
       if (G.Game.mode === 'title') G.UI.titleFrame(dt);
       else {

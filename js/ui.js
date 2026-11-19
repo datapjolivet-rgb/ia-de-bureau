@@ -31,7 +31,10 @@
     $('pbody').addEventListener('contextmenu', onPanelRightClick);
     $('pbody').addEventListener('change', (e) => { if (panelId === 'options') UI.optionsChange(e); if (UI.panelChange[panelId]) UI.panelChange[panelId](e); });
     $('ui').addEventListener('mouseover', (e) => { const t = e.target.closest('[data-tip]'); tipRef = t ? t.dataset.tip : null; showTip(t); });
-    $('ui').addEventListener('mouseout', (e) => { if (!e.relatedTarget || !e.relatedTarget.closest || !e.relatedTarget.closest('[data-tip]')) { tipRef = null; $('tip').hidden = true; } });
+    $('ui').addEventListener('mouseout', (e) => {
+      if (G.Input.mode === 'touch') return; // au toucher, l'infobulle reste jusqu'au toucher suivant
+      if (!e.relatedTarget || !e.relatedTarget.closest || !e.relatedTarget.closest('[data-tip]')) { tipRef = null; $('tip').hidden = true; }
+    });
   };
 
   // ================= Scène =================
@@ -375,6 +378,18 @@
       const online = G.Net && G.Net.online, coop = !!Game.scene.coop;
       if (G.opt('creator') && !online) rows.push([keys('creator'), 'Mode créateur']);
       if (online) rows.push([keys('chat'), 'Discuter (« /g » : au groupe)'], [keys('social'), 'Joueurs en ligne et groupe']);
+      if (In.mode === 'pad') {
+        rows.length = 0;
+        rows.push([kbd('Stick gauche'), 'Se déplacer'], [kbd('Stick droit'), 'Viser (sinon : l\'ennemi le plus proche)'], [kbd('RT'), 'Attaque de base (maintenir)'],
+          [kbd('X') + ' ' + kbd('Y') + ' ' + kbd('B') + ' ' + kbd('RB') + ' ' + kbd('LT'), 'Sorts 1 à 5'], [kbd('LB'), 'Boire une potion'], [kbd('A'), 'Parler, ouvrir, utiliser'],
+          [kbd('Vue'), 'Inventaire'], [kbd('Menu'), 'Menu'], [kbd('Croix ↓'), 'Grimoire des âmes (nécromancien)'], [kbd('Croix ←'), 'Joueurs en ligne'], [kbd('Croix ↑'), 'Répondre à une invitation'],
+          [kbd('Menus'), 'Croix pour choisir, A valider, B retour, X jeter un objet']);
+      } else if (In.mode === 'touch') {
+        rows.length = 0;
+        rows.push([kbd('Joystick'), 'Posez le pouce à gauche de l\'écran pour vous déplacer'], [kbd('⚔'), 'Attaque de base (maintenir) ; la visée est automatique'],
+          [kbd('1 à 5'), 'Sorts (ceux de déplacement suivent le joystick)'], [kbd('Po'), 'Boire une potion'], [kbd('Action'), 'Apparaît près d\'un personnage, d\'un coffre, d\'un portail'],
+          [kbd('Objets'), 'Un toucher montre l\'objet, un second l\'utilise ; appui long pour jeter']);
+      }
       return {
         title: coop ? 'Menu' : 'Pause', sub: coop ? 'Donjon de groupe : le jeu continue !' : inD ? 'Le jeu est en pause' : 'Havre-Gris',
         body: `<div class="cols" style="grid-template-columns:300px 1fr"><div class="list"><button class="main" data-menu="resume">Reprendre</button>

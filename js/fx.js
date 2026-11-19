@@ -144,6 +144,17 @@
     });
     const p = Game.player;
     if (obj && p && Game.mode === 'play' && G.opt('arrow')) drawArrow(g, p, obj, t);
+    // manette ou écran tactile : on montre où l'on vise
+    if (p && !p.dead && Game.mode === 'play' && G.Input.mode !== 'kb') {
+      const tg = Game.aimTarget;
+      g.save(); g.globalAlpha = 0.75; g.strokeStyle = '#c4661a'; g.lineWidth = 2.2;
+      if (tg && !tg.dead) { g.beginPath(); g.ellipse(tg.x, tg.y + 2, tg.r + 9, (tg.r + 9) * 0.42, 0, 0, G.TAU); g.stroke(); }
+      else {
+        const x = Game.mouse.wx, y = Game.mouse.wy;
+        g.beginPath(); g.arc(x, y, 9, 0, G.TAU); g.moveTo(x - 15, y); g.lineTo(x - 5, y); g.moveTo(x + 5, y); g.lineTo(x + 15, y); g.moveTo(x, y - 15); g.lineTo(x, y - 5); g.moveTo(x, y + 5); g.lineTo(x, y + 15); g.stroke();
+      }
+      g.restore();
+    }
     if (sc.prompt && Game.mode === 'play') {
       S.begin(3);
       const label = G.Input.shortLabel('interact') + ' — ' + sc.prompt.label;

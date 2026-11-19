@@ -252,7 +252,33 @@ button.kbtn.wait, button.kbtn.wait:hover { white-space: normal; font-size: 14px;
 .tomb h3 { font-size: 29px; overflow-wrap: anywhere; }
 .tomb .cause { color: var(--blood); }
 #small-note { position: absolute; inset: 0; display: none; place-items: center; text-align: center; padding: 24px max(16px, env(safe-area-inset-left, 0px)); background: var(--table); color: var(--paper); font-size: 22px; z-index: 50; }
-@media (max-width: 700px), (max-height: 380px) { #small-note { display: grid; } }
+@media (orientation: portrait) and (max-width: 900px) { #small-note { display: grid; } }
+/* ----- Manette : élément choisi dans les menus ----- */
+.padfocus { outline: 4px solid #e2a83a !important; outline-offset: 2px; box-shadow: 0 0 0 7px rgba(226, 168, 58, 0.35) !important; }
+body.padmode #cv { cursor: none; }
+/* ----- Écran tactile ----- */
+#stage { touch-action: none; -webkit-tap-highlight-color: transparent; }
+body.touchmode #hotbar, body.touchmode #hint { display: none; }
+body.touchmode #hotwrap { bottom: 90px; }
+body.touchmode #chat { bottom: 96px; }
+#touch { position: absolute; inset: 0; pointer-events: none; }
+#tjoyzone { position: absolute; left: 0; top: 180px; width: 560px; height: 540px; }
+#tjoy { position: absolute; width: 210px; height: 210px; border-radius: 50%; border: 3px solid rgba(43, 33, 24, 0.55); background: rgba(239, 227, 198, 0.28); pointer-events: none; }
+#tknob { position: absolute; left: 60px; top: 60px; width: 90px; height: 90px; border-radius: 50%; border: 3px solid var(--ink); background: rgba(239, 227, 198, 0.85); box-shadow: 2px 3px 0 rgba(43, 33, 24, 0.35); }
+#touch .tb { position: absolute; display: grid; place-items: center; padding: 0; overflow: hidden; border-radius: 50%; font-family: var(--f-title); font-weight: 700; background: rgba(239, 227, 198, 0.9); touch-action: none; user-select: none; -webkit-user-select: none; }
+#touch .tb.down { transform: scale(0.93); background: #f7edd4; }
+#touch .tb .cdw { position: absolute; left: 0; right: 0; bottom: 0; height: 0; background: rgba(43, 33, 24, 0.45); pointer-events: none; }
+#touch .tb .tc { position: absolute; right: 16px; bottom: 9px; font-family: var(--f-ui); font-size: 17px; font-weight: 400; }
+#tatk { left: 1090px; top: 535px; width: 150px; height: 150px; font-size: 64px; }
+#touch .sp { width: 92px; height: 92px; font-size: 32px; }
+#touch .sp.off { opacity: 0.3; }
+#touch .sp.nores .ab { opacity: 0.4; }
+#tpot { left: 860px; top: 618px; width: 84px; height: 84px; font-size: 28px; color: var(--blood); }
+#tuse { left: 720px; top: 510px; width: auto; min-width: 150px; max-width: 300px; height: 72px; padding: 0 22px !important; border-radius: 36px !important; font-size: 25px; background: #f7eed7 !important; border-color: #2f5d8a; color: #2f5d8a; }
+#tsoul { left: 1196px; top: 268px; width: 78px; height: 78px; font-size: 24px; color: #3f7d2a; }
+#tsoul.active { box-shadow: 0 0 0 4px rgba(91, 208, 74, 0.6); }
+#ttop { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); display: flex; gap: 10px; }
+#ttop button { font-size: 22px; padding: 10px 18px; background: rgba(239, 227, 198, 0.92); }
 /* ----- Grimoire des âmes (nécromancien) ----- */
 .soulgrid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
 .soul { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 6px 6px 8px; text-align: center; border: 2px solid var(--ink); border-radius: var(--sketch); background: rgba(91, 208, 74, 0.08); }
@@ -320,7 +346,7 @@ button.kbtn.wait, button.kbtn.wait:hover { white-space: normal; font-size: 14px;
   <canvas id="cv" width="1280" height="720"></canvas>
   <div id="ui"></div>
 </div>
-<div id="small-note"><p>Les Chroniques de Valdorne se jouent sur ordinateur, au clavier et à la souris.<br>Ouvrez ce lien sur un écran plus grand.</p></div>
+<div id="small-note"><p>Tournez votre téléphone en mode paysage pour jouer.<br><span style="font-size:17px;opacity:0.8">Le jeu se joue aussi au clavier et à la souris, ou à la manette.</span></p></div>
 
 <script src="js/util.js"></script>
 <script src="js/sketch.js"></script>
@@ -341,6 +367,8 @@ button.kbtn.wait, button.kbtn.wait:hover { white-space: normal; font-size: 14px;
 <script src="js/ui.js"></script>
 <script src="js/creator.js"></script>
 <script src="js/souls.js"></script>
+<script src="js/pad.js"></script>
+<script src="js/touch.js"></script>
 <script src="js/menu.js"></script>
 <script src="js/net.js"></script>
 <script src="js/coop.js"></script>

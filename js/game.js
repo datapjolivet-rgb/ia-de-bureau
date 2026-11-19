@@ -1592,6 +1592,8 @@
     if (In.held('down')) my += 1;
     if (In.held('left')) mx -= 1;
     if (In.held('right')) mx += 1;
+    // manette ou joystick tactile
+    if (!mx && !my && (G.Virt.mx || G.Virt.my)) { mx = G.Virt.mx; my = G.Virt.my; }
     if (sc.invert && sc.invert.t >= 0) { mx = -mx; my = -my; }
     // sur la glace, on glisse : la vitesse change lentement
     const ice = sc.kind === 'dungeon' && W.iceAt(sc.map, p.x, p.y + 4);
@@ -1836,6 +1838,23 @@
       u.dots = u.dots.filter((d) => d.t > 0);
     }
   }
+
+  // Visée automatique (manette sans stick droit, écran tactile) : l'ennemi visible le plus proche
+  Game.autoTarget = function (range) {
+    const sc = Game.scene, p = Game.player;
+    if (!sc || !p) return null;
+    range = range || 560;
+    const ok = (u) => u && !u.dead && !u.dormant && !u.hidden && !u.dummyUnit && u.faction === 'e' && G.dist(u, p) < range && W.los(sc.map, p.x, p.y, u.x, u.y);
+    if (ok(Game.aimTarget) && G.dist(Game.aimTarget, p) < range * 0.85) return Game.aimTarget;
+    let best = null, bd = 1e9;
+    for (const u of sc.units) {
+      if (!ok(u)) continue;
+      const d = G.dist(u, p) - (u.boss ? 60 : 0);
+      if (d < bd) { bd = d; best = u; }
+    }
+    Game.aimTarget = best;
+    return best;
+  };
 
   // Le héros que suit la caméra (en groupe, un héros tombé regarde ses alliés)
   Game.focus = function () {

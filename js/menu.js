@@ -240,6 +240,14 @@
   };
 
   // ================= Création de personnage =================
+  // nom au hasard (pratique à la manette, sans clavier)
+  function randomName() {
+    const a = ['Al', 'Bré', 'Cael', 'Dor', 'Él', 'Fen', 'Gar', 'Hal', 'Is', 'Jor', 'Kaé', 'Lys', 'Mor', 'Nor', 'Or', 'Per', 'Quen', 'Ros', 'Syl', 'Tor', 'Ul', 'Val', 'Wen', 'Yr', 'Zel', 'Ar', 'Bel', 'Cor', 'Dra', 'Gwe'];
+    const b = ['dric', 'wen', 'ric', 'mir', 'eth', 'ane', 'gard', 'lin', 'ys', 'or', 'ia', 'win', 'bert', 'mund', 'elle', 'ard', 'iel', 'is', 'enn', 'aël', 'ine', 'ombe', 'aric', 'ulf'];
+    const names = new Set(G.Save.data.chars.map((c) => c.name));
+    for (let k = 0; k < 20; k++) { const n = G.pick(a) + G.pick(b); if (!names.has(n)) return n; }
+    return G.pick(a) + G.pick(b);
+  }
   UI.showCreate = function () {
     let selC = 'guerrier';
     const cards = D.CLASS_ORDER.map((k) => {
@@ -250,7 +258,7 @@
       <div class="classes">${cards}</div>
       <div id="clsdesc"></div>
       <div class="row" style="justify-content:center"><label for="cname" style="font-size:20px">Nom du héros</label><input type="text" id="cname" maxlength="16" autocomplete="off" spellcheck="false" placeholder="Votre nom">
-      <button class="main" id="cgo">Commencer l'aventure</button></div>
+      <button id="cdice" title="Nom au hasard">Au hasard</button><button class="main" id="cgo">Commencer l'aventure</button></div>
       <div class="row" style="gap:28px;font-size:18px;justify-content:center"><label class="row" style="gap:8px"><input type="checkbox" id="cskip"> Passer le tutoriel</label>
       <label class="row hcpick" style="gap:8px"><input type="checkbox" id="chc"> <b>Mode Hardcore</b> : une seule vie. À sa mort, le héros est effacé pour toujours.</label></div>
       <div class="msg" id="cmsg" style="color:var(--blood);text-align:center"></div>`, true);
@@ -270,6 +278,7 @@
       if (c) { selC = c.dataset.cls; upd(); return; }
       const b = e.target.closest('button'); if (!b) return;
       if (b.id === 'cback') UI.showTitle();
+      if (b.id === 'cdice') { $('cname').value = randomName(); $('cmsg').textContent = ''; return; }
       if (b.id === 'cgo') {
         const name = $('cname').value.trim();
         if (name.length < 2) { $('cmsg').textContent = 'Le nom doit faire au moins 2 caractères.'; return; }
