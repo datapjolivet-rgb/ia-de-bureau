@@ -39,7 +39,8 @@
   // remplace {move}, {s1}, {potion}… par les touches choisies par le joueur
   const fill = (txt) => txt.replace(/\{(\w+)\}/g, (m, k) => (k === 'move' ? G.Input.moveLabel() : G.Input.label(k)));
   Tuto.fill = fill;
-  const say = (text, t) => { const b = brenna(); if (b) b.bubble = { text: fill(text), t: t || 6 }; };
+  // les répliques de la sergente s'affichent dans la boîte du tutoriel (pas de bulle)
+  const say = (text) => { if (st) { st.say = text; refresh(); } };
   const units = (f) => Game.scene.units.filter(f);
 
   Tuto.start = function () {
@@ -92,7 +93,7 @@
     let prog = '';
     if (s.id === 'move') prog = Math.min(100, Math.round((100 * st.n) / s.need)) + ' %';
     else if (s.need > 1) prog = Math.min(st.n, s.need) + ' / ' + s.need;
-    G.UI.tuto({ step: st.i + 1, total: STEPS.length, text: fill(s.text), prog });
+    G.UI.tuto({ step: st.i + 1, total: STEPS.length, text: fill(s.text), prog, say: st.say ? fill(st.say) : '' });
   }
 
   Tuto.event = function (ev, data) {
@@ -144,13 +145,14 @@
   Tuto.talk = function () {
     if (!st) return;
     const s = STEPS[st.i];
-    if (s) say(s.say, 7);
+    if (s) say(s.say);
+    const box = document.getElementById('tutobox');
+    if (box) { box.classList.remove('flash'); void box.offsetWidth; box.classList.add('flash'); }
   };
 
   Tuto.gate = function () {
     if (st && STEPS[st.i] && STEPS[st.i].id === 'gate') { Game.finishTuto(); return; }
-    say('Pas si vite ! Termine d\'abord l\'entraînement. Ou passe-le, si tu connais déjà tout ça.', 5);
-    G.UI.toast('Terminez le tutoriel, ou cliquez sur « Passer le tutoriel ».', '#8c3b2a', 3);
+    G.UI.toast('Sergente Brenna : « Pas si vite ! Termine d\'abord l\'entraînement. »', '#8c3b2a', 3);
   };
 
   Tuto.skip = function () {

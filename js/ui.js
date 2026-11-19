@@ -15,7 +15,7 @@
           <div class="bar" id="hpbar"><i></i><i class="shield"></i><span></span></div>
           <div class="bar" id="resbar"><i></i><span></span></div></div>
         <div id="buffs"></div>
-        <div id="tutobox" class="sk live" hidden><div class="tuto-head" id="tutohead"></div><div id="tutotext"></div><div class="tuto-foot"><span id="tutoprog"></span><button id="tutoskip">Passer le tutoriel</button></div></div>
+        <div id="tutobox" class="sk live" hidden><div class="tuto-head" id="tutohead"></div><div id="tutosay"></div><div id="tutotext"></div><div class="tuto-foot"><span id="tutoprog"></span><button id="tutoskip">Passer le tutoriel</button></div></div>
         <div id="info" class="sk"><div id="zone"></div><div id="wallet"></div><div id="tracker"></div></div>
         <div id="bossbar" class="sk" hidden><div id="bossname"></div><div class="bar"><i></i><span></span></div></div>
         <div id="hotwrap"><div class="bar" id="xpbar"><i></i><span></span></div><div id="hotbar" class="sk live"></div></div>
@@ -141,6 +141,8 @@
     b.hidden = false;
     $('tutohead').textContent = 'Tutoriel — étape ' + o.step + ' / ' + o.total;
     $('tutotext').textContent = o.text;
+    $('tutosay').textContent = o.say ? 'Sergente Brenna : « ' + o.say + ' »' : '';
+    $('tutosay').hidden = !o.say;
     $('tutoprog').textContent = o.prog || '';
   };
 

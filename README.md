@@ -15,6 +15,7 @@ Le Roi Cendré a brisé le Sceau des Quinze. Ses quinze lieutenants gardent chac
 - **Mode créateur** (à activer dans les Options, puis touche C en jeu ou bouton dans la pause) : tous les objets du jeu (60 modèles, toutes raretés, niveau 1 à 60, forge +0 à +10, nom légendaire au choix), niveau, or, sorts et talents au maximum, invincibilité, dégâts ×10, sorts sans recharge, les 15 donjons ouverts, téléportation au boss, monstres et boss à volonté. Les héros qui s'en servent portent le badge « Créateur ».
 - **Tutoriel guidé** avec la sergente Brenna, dans le camp des recrues devant la porte de Havre-Gris (il peut être passé).
 - **Havre-Gris** : forge (amélioration jusqu'à +10), boutique, académie (sorts et talents), garnison (quêtes), portail des donjons, mannequins d'entraînement, habitants et animaux.
+- **Objets reconnaissables** : chacun des 60 modèles a sa propre icône, aussi visible au sol. La matière change avec le niveau de l'objet (fer, acier, acier noirci, mithril, orichalque), la pierre sertie indique le bonus principal (rouge : puissance, vert : vitalité, bleu : armure, jaune : critique, turquoise : hâte) et l'éclat la rareté.
 - **Les 15 donjons au plan fixe**, chacun avec son boss à plusieurs phases :
   1. Cryptes de Cendrefosse — Varok le Fossoyeur
   2. Bois-Pendu — Mère-Ronce

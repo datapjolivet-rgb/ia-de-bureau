@@ -624,11 +624,14 @@
       S.circle(g, d.x, d.y - 4 + bob, 5, { fill: '#d9b52e', w: 1.1 });
       S.circle(g, d.x + 4, d.y - 1 + bob, 4, { fill: '#c9a227', w: 1 });
     } else if (d.kind === 'item') {
+      // l'objet lui-même (son icône), qui flotte au-dessus de son ombre
       const col = G.D.RARITY[d.item.rarity].color;
-      if (d.item.rarity >= 2) { g.globalAlpha = 0.25 + 0.1 * Math.sin(t * 5); g.fillStyle = col; g.beginPath(); g.arc(d.x, d.y - 6, 18, 0, G.TAU); g.fill(); g.globalAlpha = 1; }
-      S.poly(g, [[d.x - 8, d.y + 2 + bob], [d.x - 6, d.y - 10 + bob], [d.x + 6, d.y - 10 + bob], [d.x + 8, d.y + 2 + bob]], { fill: col, w: 1.4 });
-      S.line(g, d.x - 5, d.y - 10 + bob, d.x + 5, d.y - 10 + bob, 2.2, '#4a3524');
-      if (d.item.rarity >= 3) for (let i = 0; i < 2; i++) { const a = t * 2 + i * 3; g.fillStyle = col; g.fillRect(d.x + Math.cos(a) * 14, d.y - 8 + Math.sin(a) * 8, 2.5, 2.5); }
+      g.globalAlpha = 0.22; g.fillStyle = INK; g.beginPath(); g.ellipse(d.x, d.y + 3, 10, 3.6, 0, 0, G.TAU); g.fill(); g.globalAlpha = 1;
+      if (d.item.rarity >= 2) { g.globalAlpha = 0.22 + 0.1 * Math.sin(t * 5); g.fillStyle = col; g.beginPath(); g.arc(d.x, d.y - 11 + bob, 17, 0, G.TAU); g.fill(); g.globalAlpha = 1; }
+      const ic = G.Icons && G.Icons.canvas(d.item);
+      if (ic) g.drawImage(ic, d.x - 14, d.y - 25 + bob, 28, 28);
+      else S.poly(g, [[d.x - 8, d.y + 2 + bob], [d.x - 6, d.y - 10 + bob], [d.x + 6, d.y - 10 + bob], [d.x + 8, d.y + 2 + bob]], { fill: col, w: 1.4 });
+      if (d.item.rarity >= 3) for (let i = 0; i < 2; i++) { const a = t * 2 + i * 3; g.fillStyle = col; g.fillRect(d.x + Math.cos(a) * 15, d.y - 11 + Math.sin(a) * 8, 2.5, 2.5); }
     } else if (d.kind === 'potion') {
       S.circle(g, d.x, d.y - 4 + bob, 6, { fill: '#a8321f', w: 1.2 });
       S.rect(g, d.x - 2, d.y - 14 + bob, 4, 5, { fill: '#cfc7b4', w: 0.8 });

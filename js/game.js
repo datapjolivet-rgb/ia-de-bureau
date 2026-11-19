@@ -1495,8 +1495,6 @@
     for (const n of sc.npcs) {
       if (n.bubble) { n.bubble.t -= dt; if (n.bubble.t <= 0) n.bubble = null; }
       if (n.role === 'villager') {
-        n.chatCd -= dt;
-        if (n.chatCd <= 0 && G.dist(n, p) < 170) { n.chatCd = 14 + Math.random() * 12; n.bubble = { text: G.pick(Game.char.legend && D.RUMORS_AFTER && Math.random() < 0.6 ? D.RUMORS_AFTER : D.RUMORS), t: 4 }; }
         if (n.wait > 0) { n.wait -= dt; continue; }
         if (!n.target) n.target = G.pick(m.paths);
         const dx = n.target[0] - n.x, dy = n.target[1] - n.y, d = Math.hypot(dx, dy);
@@ -1899,9 +1897,8 @@
       if (d < (range || 64) && d < (best ? best.d : 1e9)) best = { d, label, act };
     };
     sc.npcs.forEach((n) => {
-      if (n.role === 'villager') consider(n.x, n.y, 'Discuter avec ' + n.name, () => { n.bubble = { text: G.pick(D.RUMORS), t: 4.5 }; n.wait = 3; n.facing = p.x >= n.x ? 1 : -1; }, 56);
-      else if (n.role === 'cat') consider(n.x, n.y, 'Caresser ' + n.name, () => { n.bubble = { text: G.pick(['Miaou.', 'Rrrrrr…', 'Mrrrou ?']), t: 2.5 }; n.sit = true; n.wait = 4; }, 44);
-      else if (n.role === 'chicken') return;
+      if (n.role === 'villager' || n.role === 'chicken') return; // les habitants vaquent à leurs occupations
+      else if (n.role === 'cat') consider(n.x, n.y, 'Caresser ' + n.name, () => { text(n.x, n.y - 22, '♥', '#b3261e', 20); n.sit = true; n.wait = 4; }, 44);
       else if (n.role === 'brenna') consider(n.x, n.y, 'Parler à ' + n.name, () => G.Tuto && G.Tuto.talk(), 70);
       else if (n.role === 'gateTuto') consider(n.x, n.y, 'Entrer à Havre-Gris', () => G.Tuto && G.Tuto.gate(), 90);
       else consider(n.x, n.y, (n.look === 'portal' ? 'Utiliser le ' : 'Parler à ') + n.name, () => G.UI.openPanel(n.role), n.look === 'portal' ? 90 : 64);

@@ -27,6 +27,7 @@
     else if (slot === 'amulette') s.vit = (3 + L * 1.0) * rm;
     return s;
   }
+  I.baseStats = baseStats;
   function affixValue(stat, ilvl, rm) {
     switch (stat) {
       case 'pow': return (1.5 + ilvl * 0.8) * rm;
