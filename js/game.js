@@ -503,7 +503,7 @@
     parts(u.x, u.y - 8, 14, u.look === 'wisp' ? '#9be0d0' : '#2b2118', 'ink', 200);
     ring(u.x, u.y, u.r * 2.5, '#2b2118');
     cancelHazards(u);
-    if (u.isPlayer) { Game.onPlayerDeath(); return; }
+    if (u.isPlayer) { if (u === Game.player) dismissGrimoire(); Game.onPlayerDeath(); return; }
     if (u.soul) { soulGone(u, 'L\'âme de ' + u.def.name + ' est vaincue. Elle reviendra au prochain donjon.'); return; }
     if (u.minion) { if (u.bound) text(u.x, u.y - 40, 'Le serviteur retourne à la poussière', '#3f7d2a', 16); return; }
     decal(u.x, u.y + 2, u.r * 0.9, u.look === 'wisp' ? '#5a8a7a' : '#2b2118');
@@ -711,6 +711,62 @@
     const u = Game.soulOut();
     if (u) soulGone(u, 'Les âmes n\'entrent pas dans l\'antre d\'un boss : ' + u.def.name + ' retourne au grimoire.');
   }
+  // ----- Meutes : n'importe quel monstre vaincu, invoqué par 5 -----
+  // 60 de mana, recharge de 45 s ; aussi forts que les morts relevés (60 % de vie, 65 % de dégâts, au niveau du donjon).
+  // Ils restent jusqu'à leur mort, ou celle du nécromancien. 10 au plus en même temps (les plus anciens repartent).
+  const PACK = (Game.PACK = { n: 5, cost: 60, cd: 45, max: 10, hp: 0.6, dmg: 0.65 });
+  const packable = (m) => m && !m.boss && !m.dummy && !m.illusion && m.speed > 0;
+  Game.packTypes = function (ch) {
+    ch = ch || Game.char;
+    if (!ch || ch.cls !== 'necromancien') return [];
+    return Object.keys(D.MONSTERS).filter((t) => packable(D.MONSTERS[t]) && (ch.kills[t] || 0) > 0);
+  };
+  Game.packAll = () => Object.keys(D.MONSTERS).filter((t) => packable(D.MONSTERS[t]));
+  Game.packLvl = () => { const sc = Game.scene; return sc && sc.kind === 'dungeon' && sc.def ? sc.def.lvl + 1 : Math.max(1, (Game.char ? Game.char.lvl : 1) - 2); };
+  Game.packStats = function (type, lvl) {
+    const u = makeMonster(type, 0, 0, lvl || Game.packLvl(), false);
+    return { hp: Math.max(1, Math.round(u.maxHp * PACK.hp)), dmg: Math.round(u.dmg * PACK.dmg) };
+  };
+  Game.packCheck = function (type) {
+    const sc = Game.scene, p = Game.player, ch = Game.char;
+    if (!ch || ch.cls !== 'necromancien') return 'Seul le nécromancien possède un grimoire des âmes.';
+    if (!sc || sc.kind !== 'dungeon') return 'Les âmes ne répondent pas en ville : invoquez-les dans un donjon.';
+    if (!p || p.dead || Game.mode !== 'play') return 'Impossible maintenant.';
+    if (p.manaLock) return 'Votre mana nourrit déjà l\'âme d\'un boss.';
+    if ((p.packCd || 0) > 0) return 'Le grimoire se recharge : encore ' + Math.ceil(p.packCd) + ' s.';
+    if (p.res < PACK.cost) return 'Pas assez de mana : il en faut ' + PACK.cost + '.';
+    if (type && !Game.packTypes().includes(type)) return 'Vous n\'avez pas encore vaincu ce monstre.';
+    return null;
+  };
+  Game.summonPack = function (type) {
+    const why = Game.packCheck(type);
+    if (why) { warn(why); return false; }
+    const sc = Game.scene, p = Game.player, d = D.MONSTERS[type];
+    // pas plus de 10 : les plus anciens retournent au grimoire
+    const old = sc.units.filter((u) => u.pack && !u.dead && !u.netCtl);
+    old.slice(0, Math.max(0, old.length + PACK.n - PACK.max)).forEach((u) => { u.dead = true; parts(u.x, u.y - 8, 8, '#5bd04a', 'puff', 80); });
+    for (let i = 0; i < PACK.n; i++) {
+      const u = makeMinion(type, p.x, p.y, Game.packLvl(), false, false);
+      Object.assign(u, { pack: true, life: 1e9, name: d.name + ' (âme)', gcd: 0.5 + i * 0.15 });
+      placeNear(u, p);
+      sc.units.push(u);
+      parts(u.x, u.y - 8, 8, '#5bd04a', 'spark', 110);
+      ring(u.x, u.y, 28, '#5bd04a', 0.4);
+    }
+    p.res -= PACK.cost; p.packCd = PACK.cd;
+    Game.lastPack = type;
+    text(p.x, p.y - 60, 'Meute de ' + d.name + ' !', '#3f7d2a', 22, 1.6);
+    return true;
+  };
+  function dismissGrimoire() {
+    const sc = Game.scene;
+    if (!sc) return;
+    let n = 0;
+    sc.units.forEach((u) => { if ((u.pack || u.soul) && !u.dead && !u.netCtl) { u.dead = true; n++; parts(u.x, u.y - 8, 10, '#5bd04a', 'puff', 90); } });
+    if (Game.player) Game.player.manaLock = false;
+    if (n) text(Game.player.x, Game.player.y - 70, 'Vos âmes retournent au grimoire…', '#3f7d2a', 18, 2);
+  }
+
   // chaque image : l'âme ne suit pas son maître dans la salle du boss
   function updateSoul(sc) {
     const u = Game.soulOut();
@@ -949,7 +1005,7 @@
       ring(k.x, k.y, 60, '#5bd04a', 0.5);
       parts(k.x, k.y, 14, '#5bd04a', 'spark', 120);
       if (k.boss) { Game.char.boundBoss = k.type; G.UI.toast(m.name + ' vous servira pendant votre prochain donjon !', '#3f7d2a', 5); }
-      const mins = sc.units.filter((u) => u.minion && !u.bound && !u.soul && !u.dead);
+      const mins = sc.units.filter((u) => u.minion && !u.bound && !u.soul && !u.pack && !u.dead);
       if (mins.length > 4) { mins[0].dead = true; parts(mins[0].x, mins[0].y, 8, '#2b2118'); }
     } else {
       text(k.x, k.y - 40, 'Échec ! (' + Math.round(chance * 100) + ' %)', '#9b2c20', 22);
@@ -1476,6 +1532,7 @@
     tickStatus(p, dt);
     if (p.dead) return;
     for (const k in p.cds) if (p.cds[k] > 0) p.cds[k] -= dt;
+    if (p.packCd > 0) p.packCd -= dt;
     if (p.potionCd > 0) p.potionCd -= dt;
     if (p.invulnT > 0) p.invulnT -= dt;
     if (p.stunT > 0) p.stunT -= dt;

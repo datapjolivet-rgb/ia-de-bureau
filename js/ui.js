@@ -99,11 +99,14 @@
     const slots = $('hotbar').children;
     for (const el of slots) {
       const s = el.dataset.slot;
-      if (s === 'soul') { // grimoire des âmes : disponible, invoquée, ou déjà utilisée dans ce donjon
+      if (s === 'soul') { // grimoire des âmes : disponible, âme de boss invoquée, recharge des meutes
         const st = G.Souls ? G.Souls.state() : { any: false };
         el.classList.toggle('locked', !st.any);
         el.classList.toggle('active', !!st.out);
         el.classList.toggle('nores', st.any && !st.out && !st.can);
+        const cdEl = el.querySelector('.cd'), t = el.querySelector('.cdt');
+        if (st.packCd > 0) { cdEl.style.setProperty('--p', (100 * st.packCd / Game.PACK.cd).toFixed(0) + '%'); t.textContent = Math.ceil(st.packCd); el.classList.add('oncd'); }
+        else if (t.textContent) { cdEl.style.setProperty('--p', '0%'); t.textContent = ''; el.classList.remove('oncd'); }
         continue;
       }
       let cd = 0, max = 1;

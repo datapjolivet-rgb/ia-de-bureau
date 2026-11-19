@@ -448,7 +448,7 @@
   Coop.onMinions = function (from, list) {
     if (!st || Game.scene !== st.sc) return;
     const seen = new Set();
-    (list || []).slice(0, 12).forEach((a) => {
+    (list || []).slice(0, 24).forEach((a) => {
       if (!Array.isArray(a)) return;
       const [id, type, x, y, hpPct, aim, elite, soul] = a, key = from + ':' + id;
       if (!D.MONSTERS[type]) return;

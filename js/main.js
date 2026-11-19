@@ -173,7 +173,11 @@
       return;
     }
     // grimoire des âmes du nécromancien
-    if (acts.includes('summon') && Game.mode === 'play' && G.Souls && !['menu', 'keys', 'options', 'creator'].includes(UI.currentPanel())) { e.preventDefault(); G.Souls.toggle(); return; }
+    if (acts.includes('summon') && Game.mode === 'play' && G.Souls && !['menu', 'keys', 'options', 'creator'].includes(UI.currentPanel())) {
+      e.preventDefault();
+      if (e.shiftKey) { if (!e.repeat) G.Souls.quick(); } else G.Souls.toggle(); // Maj : la dernière meute
+      return;
+    }
     // jeu en ligne : discussion et liste des joueurs
     if (acts.includes('chat') && Game.mode === 'play' && G.Net && G.Net.online && !UI.currentPanel()) { e.preventDefault(); G.Net.openChat(); return; }
     if (acts.includes('social') && Game.mode === 'play' && G.Net && G.Net.available) {

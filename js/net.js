@@ -132,7 +132,7 @@
     if (sc.coop) {
       m.hp = Math.max(0, Math.round(p.hp)); m.mh = Math.round(p.maxHp);
       const mins = sc.units.filter((u) => u.minion && !u.netCtl && !u.dead);
-      if (mins.length) m.mn = mins.map((u) => [u.id, u.type, Math.round(u.x), Math.round(u.y), Math.max(1, Math.round((100 * u.hp) / u.maxHp)), Math.round(u.aim * 100) / 100, u.elite ? 1 : 0, u.soul ? 1 : 0]);
+      if (mins.length) m.mn = mins.map((u) => [u.id, u.type, Math.round(u.x), Math.round(u.y), Math.max(1, Math.round((100 * u.hp) / u.maxHp)), Math.round(u.aim * 100) / 100, u.elite ? 1 : 0, u.soul || u.pack ? 1 : 0]);
     }
     return m;
   }
