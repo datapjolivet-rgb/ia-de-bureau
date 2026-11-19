@@ -152,6 +152,8 @@
     setTimeout(() => { const b = tv.querySelector('[data-no]'); if (b) b.focus(); }, 30);
   }
 
+  UI.frame = frame; UI.titleConfirm = titleConfirm; // pour le portail de connexion (compte.js)
+
   // ================= Menu principal =================
   UI.showTitle = function () {
     const data = G.Save.data, ch = lastHero();

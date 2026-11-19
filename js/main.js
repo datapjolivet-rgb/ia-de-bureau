@@ -1,7 +1,8 @@
 // Démarrage : sauvegarde, clavier/souris, mise à l'échelle et boucle principale.
 (function () {
   const $ = (id) => document.getElementById(id);
-  const KEY = 'valdorne-save-v1';
+  const KEY0 = 'valdorne-save-v1';
+  let KEY = KEY0; // avec un compte : une copie locale par compte (utile hors ligne)
 
   // ================= Sauvegarde =================
   // Compte claude.ai (base privée par joueur) si disponible, sinon ce navigateur.
@@ -19,7 +20,10 @@
     return data;
   }
 
+  Save.clean = (d) => clean(d);
+  Save.useKey = (k) => { KEY = k ? KEY0 + '@' + k : KEY0; };
   Save.whereText = function () {
+    if (G.Compte && G.Compte.nom) return 'Sauvegarde liée au compte « ' + G.Compte.nom + ' ».';
     if (Save.db) return 'Sauvegarde automatique liée à votre compte claude.ai.';
     if (Save.local) return 'Sauvegarde automatique dans ce navigateur.';
     return 'Sauvegarde indisponible ici : la progression sera perdue en fermant la page.';
@@ -56,6 +60,7 @@
   function writeNow() {
     const json = JSON.stringify(Save.data);
     if (Save.local) { try { localStorage.setItem(KEY, json); } catch (e) { /* stockage plein ou bloqué */ } }
+    if (G.Compte && G.Compte.nom) G.Compte.envoyer(json); // compte : la sauvegarde part aussi sur le serveur
     if (!Save.db) return;
     if (Save.writing) { Save.dirty = true; return; }
     Save.writing = true;
@@ -232,7 +237,8 @@
   // ================= Démarrage =================
   async function boot() {
     G.UI.init();
-    Save.initLocal();
+    if (G.Compte) await G.Compte.demarrer(); // site du jeu : compte et héros enregistrés sur le serveur
+    else Save.initLocal();
     G.Input.load();
     try { await Promise.race([document.fonts.load('700 20px Caveat'), new Promise((r) => setTimeout(r, 2500))]); } catch (e) { /* police de secours */ }
     G.UI.showTitle();

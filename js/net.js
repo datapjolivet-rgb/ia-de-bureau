@@ -16,7 +16,7 @@
   const cname = (cls) => (D.CLASSES[cls] ? D.CLASSES[cls].name : '?');
 
   // ================= Connexion =================
-  Net.enabled = () => Net.available && G.opt('online');
+  Net.enabled = () => Net.available && G.opt('online') && !!(G.Compte && G.Compte.jeton); // jeu en ligne : avec un compte
   Net.start = function (ch) {
     Net.char = ch;
     if (!Net.enabled() || !ch) return;
@@ -47,7 +47,7 @@
   }
   function openSocket() {
     let ws;
-    try { ws = new WebSocket(Net.url); } catch (e) { Net.state = 'off'; renderNet(); retryLater(); return; }
+    try { ws = new WebSocket(Net.url + '?jeton=' + encodeURIComponent(G.Compte ? G.Compte.jeton || '' : '')); } catch (e) { Net.state = 'off'; renderNet(); retryLater(); return; }
     Net.ws = ws; Net.state = 'connecting';
     renderNet();
     ws.onopen = () => { if (Net.ws === ws) { Net.retry = 0; hello(); } };
@@ -306,7 +306,7 @@
   function onChat(m) {
     if (Net.ignored.has(m.id)) return;
     const mine = m.id === Net.myId;
-    addLine({ ch: m.ch, name: m.name, text: m.text, mine });
+    addLine({ ch: m.ch, name: m.name + (m.acct && m.acct !== m.name ? ' (' + m.acct + ')' : ''), text: m.text, mine });
     const u = mine ? Game.player : avatar(m.id);
     if (u && Game.mode === 'play') u.bubble = { text: m.text, t: 5 };
   }
@@ -443,6 +443,7 @@
     el.hidden = false;
     let txt, cls;
     if (!G.opt('online')) { txt = 'Hors ligne (option)'; cls = 'off'; }
+    else if (!(G.Compte && G.Compte.jeton)) { txt = 'Hors ligne : connectez-vous pour jouer en ligne'; cls = 'off'; }
     else if (Net.char && Net.char.creator) { txt = 'Hors ligne (héros créateur)'; cls = 'off'; }
     else if (Net.online) { const n = Net.peers.size + 1; txt = 'En ligne · ' + n + ' joueur' + (n > 1 ? 's' : ''); cls = 'on'; }
     else if (Net.state === 'connecting') { txt = 'Connexion au serveur…'; cls = 'wait'; }

@@ -47,6 +47,8 @@ Bande-annonce de 46 secondes, façon cinéma, avec une voix off grave (voix de s
 
 ## Jeu en ligne
 
+**Comptes** : sur le site, le jeu s'ouvre sur un portail de connexion. On crée un compte avec un pseudo (réservé, 3 à 16 caractères) et un mot de passe ; pas d'adresse e-mail, donc un mot de passe oublié ne peut pas être récupéré. Les héros du compte sont gardés sur le serveur et se retrouvent sur n'importe quel appareil (ordinateur, téléphone, application) ; une copie reste sur l'appareil pour jouer hors ligne et repart vers le serveur quand la connexion revient. À la création d'un compte, les héros déjà présents sur l'appareil peuvent y être importés. Le jeu en ligne demande un compte ; « Jouer sans compte » garde le solo avec les héros de l'appareil. Sur le serveur, les mots de passe ne sont jamais enregistrés tels quels (empreinte PBKDF2 salée), les essais de connexion sont limités, et le pseudo du compte s'affiche à côté du nom du héros dans la discussion.
+
 Le jeu en ligne fonctionne sur https://valdorne.chroniques-valdorne.workers.dev, où le jeu est servi par son serveur (dossier `server/`, voir « Mettre le jeu en ligne »). Dans l'artefact claude.ai ou en ouvrant les fichiers en local, le jeu reste en solo. L'option « Jouer en ligne » (Options) permet aussi de jouer hors ligne.
 
 - **Havre-Gris partagée** : on voit les autres héros se déplacer, avec leur nom.

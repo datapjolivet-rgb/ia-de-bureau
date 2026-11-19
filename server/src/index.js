@@ -10,15 +10,30 @@ const MAX_PARTY = 4;
 const MAX_MSG_PER_SEC = 60;
 const clean = (s, n) => String(s == null ? '' : s).replace(/[\u0000-\u001f\u007f<>]/g, '').trim().slice(0, n);
 const num = (v, d = 0) => (typeof v === 'number' && isFinite(v) ? v : d);
+const hex = (u8) => [...u8].map((b) => b.toString(16).padStart(2, '0')).join('');
+const b64url = (u8) => btoa(String.fromCharCode(...u8)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+// empreinte d'un jeton de session (SHA-256)
+const sha = async (t) => hex(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(t))));
+// empreinte d'un mot de passe : PBKDF2-SHA256, 100 000 tours, sel aléatoire
+async function empreinte(mdp, sel) {
+  const k = await crypto.subtle.importKey('raw', new TextEncoder().encode(mdp), 'PBKDF2', false, ['deriveBits']);
+  const bits = await crypto.subtle.deriveBits({ name: 'PBKDF2', hash: 'SHA-256', salt: new TextEncoder().encode(sel), iterations: 100000 }, k, 256);
+  return hex(new Uint8Array(bits));
+}
+// comparaison en temps constant
+function egal(a, b) { if (a.length !== b.length) return false; let d = 0; for (let i = 0; i < a.length; i++) d |= a.charCodeAt(i) ^ b.charCodeAt(i); return d === 0; }
 
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
     if (url.pathname === '/ws') {
       if (request.headers.get('Upgrade') !== 'websocket') return new Response('Connexion WebSocket attendue.', { status: 426 });
-      return env.WORLD.getByName('monde').fetch(request);
+      return env.WORLD.getByName('monde-v2').fetch(request);
     }
-    if (url.pathname === '/api/status') return env.WORLD.getByName('monde').fetch(request);
+    if (url.pathname === '/api/status' || url.pathname.startsWith('/api/compte/')) {
+      try { return await env.WORLD.getByName('monde-v2').fetch(request); }
+      catch (e) { return Response.json({ erreur: 'Serveur indisponible, réessayez dans un instant.', detail: String(e && e.message || e).slice(0, 300) }, { status: 503 }); }
+    }
     if (url.pathname.startsWith('/api/')) return new Response('Inconnu.', { status: 404 });
     return serveFile(request, url);
   },
@@ -56,17 +71,98 @@ export class World extends DurableObject {
     this.pos = new Map(); //  WebSocket -> dernière position connue en ville
     this.rate = new Map(); // WebSocket -> [seconde, compteur]
     this.gone = new WeakSet(); // connexions terminées
+    this.tries = new Map(); // adresse ou compte -> [début de la fenêtre, essais] (limite les essais de mot de passe)
+    // Comptes des joueurs : pseudo, mot de passe (empreinte PBKDF2 salée, jamais le mot de passe lui-même),
+    // sessions (seule l'empreinte du jeton est gardée) et sauvegarde des héros.
+    const sql = ctx.storage.sql;
+    sql.exec(`CREATE TABLE IF NOT EXISTS comptes (cle TEXT PRIMARY KEY, nom TEXT NOT NULL, sel TEXT NOT NULL, empreinte TEXT NOT NULL, cree INTEGER NOT NULL)`);
+    sql.exec(`CREATE TABLE IF NOT EXISTS sessions (jeton TEXT PRIMARY KEY, cle TEXT NOT NULL, expire INTEGER NOT NULL)`);
+    sql.exec(`CREATE TABLE IF NOT EXISTS sauvegardes (cle TEXT PRIMARY KEY, donnees TEXT NOT NULL, maj INTEGER NOT NULL)`);
+  }
+
+  // ---------- comptes ----------
+  async compte(request, url) {
+    const sql = this.ctx.storage.sql, now = Date.now();
+    const json = (o, status = 200) => Response.json(o, { status, headers: { 'cache-control': 'no-store' } });
+    const route = url.pathname.slice('/api/compte/'.length);
+    const ip = request.headers.get('cf-connecting-ip') || 'local';
+    if (route === 'inscription' || route === 'connexion') {
+      if (request.method !== 'POST') return json({ erreur: 'Méthode non permise.' }, 405);
+      if (!this.essai('ip:' + ip, 30)) return json({ erreur: 'Trop d\'essais. Réessayez dans quelques minutes.' }, 429);
+      let b; try { b = await request.json(); } catch (e) { return json({ erreur: 'Demande illisible.' }, 400); }
+      const nom = String((b && b.nom) || '').trim(), mdp = String((b && b.mdp) || '');
+      if (!/^[\p{L}\p{N}_-]{3,16}$/u.test(nom)) return json({ erreur: 'Le pseudo doit faire 3 à 16 caractères : lettres, chiffres, - ou _.' }, 400);
+      if (mdp.length < 6 || mdp.length > 128) return json({ erreur: 'Le mot de passe doit faire au moins 6 caractères.' }, 400);
+      const cle = nom.toLocaleLowerCase('fr');
+      const row = sql.exec('SELECT nom, sel, empreinte FROM comptes WHERE cle = ?', cle).toArray()[0];
+      if (route === 'inscription') {
+        if (row) return json({ erreur: 'Ce pseudo est déjà pris.' }, 409);
+        const sel = hex(crypto.getRandomValues(new Uint8Array(16)));
+        sql.exec('INSERT INTO comptes (cle, nom, sel, empreinte, cree) VALUES (?, ?, ?, ?, ?)', cle, nom, sel, await empreinte(mdp, sel), now);
+        return json({ nom, jeton: await this.session(cle) }, 201);
+      }
+      if (!this.essai('compte:' + cle, 10)) return json({ erreur: 'Trop d\'essais pour ce compte. Réessayez dans quelques minutes.' }, 429);
+      if (!row || !egal(await empreinte(mdp, row.sel), row.empreinte)) return json({ erreur: 'Pseudo ou mot de passe incorrect.' }, 401);
+      return json({ nom: row.nom, jeton: await this.session(cle) });
+    }
+    const who = await this.qui(request);
+    if (!who) return json({ erreur: 'Session expirée : reconnectez-vous.' }, 401);
+    if (route === 'moi') return json({ nom: who.nom });
+    if (route === 'deconnexion') { sql.exec('DELETE FROM sessions WHERE jeton = ?', who.jeton); return json({ ok: true }); }
+    if (route === 'sauvegarde') {
+      if (request.method === 'GET') {
+        const s = sql.exec('SELECT donnees, maj FROM sauvegardes WHERE cle = ?', who.cle).toArray()[0];
+        return json({ donnees: s ? s.donnees : null, maj: s ? s.maj : 0 });
+      }
+      if (request.method === 'PUT') {
+        const txt = await request.text();
+        if (txt.length > 1500000) return json({ erreur: 'Sauvegarde trop grosse.' }, 413);
+        try { const d = JSON.parse(txt); if (!d || !Array.isArray(d.chars)) throw 0; } catch (e) { return json({ erreur: 'Sauvegarde illisible.' }, 400); }
+        sql.exec('INSERT INTO sauvegardes (cle, donnees, maj) VALUES (?, ?, ?) ON CONFLICT(cle) DO UPDATE SET donnees = excluded.donnees, maj = excluded.maj', who.cle, txt, now);
+        return json({ ok: true, maj: now });
+      }
+      return json({ erreur: 'Méthode non permise.' }, 405);
+    }
+    return json({ erreur: 'Inconnu.' }, 404);
+  }
+  async session(cle) {
+    const jeton = b64url(crypto.getRandomValues(new Uint8Array(32)));
+    // on ne garde que l'empreinte : une fuite de la base ne donne pas de session utilisable
+    this.ctx.storage.sql.exec('INSERT INTO sessions (jeton, cle, expire) VALUES (?, ?, ?)', await sha(jeton), cle, Date.now() + 180 * 86400000);
+    this.ctx.storage.sql.exec('DELETE FROM sessions WHERE expire < ?', Date.now());
+    return jeton;
+  }
+  async qui(request, tok) {
+    const t = tok || (request.headers.get('authorization') || '').replace(/^Bearer\s+/i, '');
+    if (!t || t.length > 100) return null;
+    const h = await sha(t);
+    const r = this.ctx.storage.sql.exec('SELECT s.cle AS cle, c.nom AS nom FROM sessions s JOIN comptes c ON c.cle = s.cle WHERE s.jeton = ? AND s.expire > ?', h, Date.now()).toArray()[0];
+    return r ? { cle: r.cle, nom: r.nom, jeton: h } : null;
+  }
+  essai(k, max) {
+    const now = Date.now(), r = this.tries.get(k) || [now, 0];
+    if (now - r[0] > 10 * 60000) { r[0] = now; r[1] = 0; }
+    r[1]++; this.tries.set(k, r);
+    if (this.tries.size > 5000) this.tries.clear();
+    return r[1] <= max;
   }
 
   async fetch(request) {
     const url = new URL(request.url);
     if (url.pathname === '/api/status') {
-      return Response.json({ online: this.named().length }, { headers: { 'cache-control': 'no-store', 'access-control-allow-origin': '*' } });
+      return Response.json({ online: this.named().length, comptes: true }, { headers: { 'cache-control': 'no-store', 'access-control-allow-origin': '*' } });
     }
+    if (url.pathname.startsWith('/api/compte/')) {
+      try { return await this.compte(request, url); }
+      catch (e) { console.error('compte', e && e.stack); return Response.json({ erreur: 'Erreur du serveur.', detail: String(e && e.message || e).slice(0, 300) }, { status: 500 }); }
+    }
+    // jeu en ligne : seulement avec un compte
+    const who = await this.qui(request, url.searchParams.get('jeton') || '');
+    if (!who) return new Response('Connectez-vous pour jouer en ligne.', { status: 401 });
     const pair = new WebSocketPair();
     const [client, server] = Object.values(pair);
     this.ctx.acceptWebSocket(server);
-    const m = { id: crypto.randomUUID().replace(/-/g, '').slice(0, 12), name: '', cls: '', lvl: 1, party: null, leader: false, scene: 'town' };
+    const m = { id: crypto.randomUUID().replace(/-/g, '').slice(0, 12), name: '', acct: who.nom, cls: '', lvl: 1, party: null, leader: false, scene: 'town' };
     server.serializeAttachment(m);
     this.meta.set(server, m);
     return new Response(null, { status: 101, webSocket: client });
@@ -89,7 +185,7 @@ export class World extends DurableObject {
   send(ws, msg) { try { ws.send(typeof msg === 'string' ? msg : JSON.stringify(msg)); } catch (e) { /* connexion fermée */ } }
   pub(ws) {
     const m = this.info(ws), p = this.pos.get(ws) || {};
-    return { id: m.id, name: m.name, cls: m.cls, lvl: m.lvl, party: m.party, scene: m.scene, x: p.x || 0, y: p.y || 0 };
+    return { id: m.id, name: m.name, acct: m.acct || '', cls: m.cls, lvl: m.lvl, party: m.party, scene: m.scene, x: p.x || 0, y: p.y || 0 };
   }
   partyView(pid) {
     const list = this.members(pid);
@@ -181,7 +277,7 @@ export class World extends DurableObject {
         const text = clean(msg.text, 200);
         if (!text) return;
         const party = msg.ch === 'party' && me.party;
-        const out = JSON.stringify({ t: 'chat', id: me.id, name: me.name, ch: party ? 'party' : 'all', text });
+        const out = JSON.stringify({ t: 'chat', id: me.id, name: me.name, acct: me.acct || '', ch: party ? 'party' : 'all', text });
         for (const w of party ? this.members(me.party) : this.named()) this.send(w, out);
         break;
       }
