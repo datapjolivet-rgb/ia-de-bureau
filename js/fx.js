@@ -116,6 +116,7 @@
     const list = sc.units.filter((u) => !u.dead && vis(u.x, u.y, 80)).concat(sc.npcs.filter((n) => vis(n.x, n.y, 80)));
     list.sort((a, b) => a.y - b.y);
     list.forEach((u) => (sc.npcs.includes(u) ? R.npc(g, u) : R.unit(g, u)));
+    if (G.Net) G.Net.drawOverlay(g, sc, vis); // noms des autres héros
     sc.units.forEach((u) => !u.dead && !u.isPlayer && !u.dormant && !u.hidden && vis(u.x, u.y, 40) && R.hpBar(g, u));
     sc.projs.forEach((p) => R.proj(g, p));
     drawParts(g, sc);
@@ -183,7 +184,7 @@
     ecl = ecl || 0;
     const lights = [];
     const add = (x, y, r, i, color) => { if (x > sx - r && x < sx + Game.W + r && y > sy - r && y < sy + Game.H + r) lights.push([x - sx, y - sy, r, i, color]); };
-    const p = Game.player, m = sc.map;
+    const p = Game.focus ? Game.focus() : Game.player, m = sc.map;
     const px = p ? p.x - sx : Game.W / 2, py = p ? p.y - 10 - sy : Game.H / 2;
     const gr = g.createRadialGradient(px, py, 70 * (1 - 0.35 * ecl), px, py, 560 * (1 - 0.5 * ecl));
     gr.addColorStop(0, 'rgba(14,9,5,0)');

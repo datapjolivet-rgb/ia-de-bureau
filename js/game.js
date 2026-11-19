@@ -28,6 +28,7 @@
     if (!char.shop) Game.refreshShop();
     if (char.tuto === 'todo') Game.enterTuto();
     else Game.enterTown('plaza');
+    if (G.Net) G.Net.start(char); // en ligne si possible (site du jeu)
   };
 
   Game.refreshStats = function () {
@@ -130,19 +131,23 @@
 
   Game.dungeonUnlocked = (id) => id === 1 || Game.char.cleared >= id - 1;
 
-  Game.enterDungeon = function (def) {
+  // coop : { role: 'host' | 'member', key, host, size } pour un donjon en groupe (voir coop.js)
+  Game.enterDungeon = function (def, coop) {
     const m = W.buildDungeon(def);
     if (mapCache['d' + def.id]) m.img = mapCache['d' + def.id];
     else { W.render(m); mapCache['d' + def.id] = m.img; }
     W.initFog(m);
     const sc = newScene(m, 'dungeon');
     sc.def = def;
+    if (coop) { sc.coop = coop; sc.hpMul = G.Coop ? G.Coop.hpMul(coop.size) : 1; }
     sc.run = { t0: Game.time, kills: 0, gold: 0, items: [], xp: 0 };
     const p = makePlayer(Game.char);
     p.x = m.spawn.x; p.y = m.spawn.y;
     sc.units.push(p);
     Game.scene = sc;
     spawnDungeon(sc, m, def);
+    // membre d'un groupe : les monstres viennent de l'ordinateur du chef (on garde le plan, les coffres et les pièges)
+    if (coop && coop.role === 'member') { sc.units = sc.units.filter((u) => u.isPlayer); sc.boss = null; }
     sc.portals.push({ id: G.uid(), x: m.spawn.x - 70, y: m.spawn.y, victory: false });
     // Boss lié (nécromancien) : il combat à vos côtés pendant tout ce donjon
     if (Game.char.boundBoss && D.MONSTERS[Game.char.boundBoss]) {
@@ -154,6 +159,7 @@
     Game.mode = 'play';
     snapCam();
     W.reveal(m, p.x, p.y, 7);
+    if (coop && G.Coop) G.Coop.start(sc);
     G.UI.onScene();
     G.UI.toast(def.name, '#2b2118', 3);
   };
@@ -186,6 +192,7 @@
           const b = makeMonster(def.boss, (r.x + r.w / 2) * T, (r.y + r.h / 2) * T, def.lvl + 2, false);
           if (W.collides(m, b.x, b.y, b.r)) b.y -= T;
           b.dormant = true; b.bossRoom = r;
+          scaleHp(sc, b);
           sc.boss = b; sc.units.push(b);
           return;
         }
@@ -195,11 +202,14 @@
         for (let i = 0; i < n; i++) {
           let x, y, tries = 0;
           do { x = (r.x + 1.5 + rng() * (r.w - 3)) * T; y = (r.y + 1.5 + rng() * (r.h - 3)) * T; } while (W.collides(m, x, y, 18) && ++tries < 30);
-          sc.units.push(makeMonster(sp.type, x, y, def.lvl + Math.floor(ri / 2), sp.elite, { affixes: affixN }));
+          sc.units.push(scaleHp(sc, makeMonster(sp.type, x, y, def.lvl + Math.floor(ri / 2), sp.elite, { affixes: affixN })));
         }
       });
     });
   }
+
+  // En groupe, les monstres ont plus de vie (+70 % par joueur en plus)
+  function scaleHp(sc, u) { if (sc && sc.hpMul > 1) { u.maxHp = Math.round(u.maxHp * sc.hpMul); u.hp = u.maxHp; } return u; }
 
   function makeMonster(type, x, y, lvl, elite, opts) {
     const d = D.MONSTERS[type], X = D.DIFF;
@@ -218,6 +228,8 @@
     atkList(u).forEach((a, i) => (u.atkCd[u.phase + '_' + i] = Math.random() * a.cd * 0.6));
     return u;
   }
+
+  Game.makeMonster = makeMonster;
 
   function applyAffixes(u, n) {
     const keys = Object.keys(D.AFFIXES).sort(() => Math.random() - 0.5).slice(0, n);
@@ -278,6 +290,16 @@
     if (sc.decals.length > 160) sc.decals.shift();
   }
   Game.shake = (a) => { if (G.opt('shake')) Game.cam.shake = Math.min(14, Math.max(Game.cam.shake, a)); };
+  // Cri d'un monstre au-dessus de sa tête (vu aussi par le reste du groupe)
+  function shout(u, s, color, size) {
+    text(u.x, u.y - u.r * 2 - 20, s, color, size);
+    if (Game.scene.coop && G.Coop) G.Coop.say(u, s, color, size);
+  }
+  // Message important d'un boss ou du donjon (affiché aussi chez les autres membres du groupe)
+  function bossToast(msg, color, dur) {
+    G.UI.toast(msg, color, dur);
+    if (Game.scene && Game.scene.coop && G.Coop) G.Coop.toast(msg, color, dur);
+  }
 
   // ================= Statistiques dynamiques =================
   const hasBuff = (u, id) => u.buffs && u.buffs.some((b) => b.id === id);
@@ -300,7 +322,7 @@
     return { d, crit };
   }
   // mode créateur : invincibilité, dégâts ×10, sorts sans recharge ni coût
-  const cheat = (k) => !!(Game.char && Game.char.cheats && Game.char.cheats[k]);
+  const cheat = (k) => !!(Game.char && Game.char.cheats && Game.char.cheats[k]) && !(G.Net && G.Net.online);
   function isInvuln(p) { return p.invulnT > 0 || hasBuff(p, 'divin') || (p.dash && p.dash.invuln) || (p.isPlayer && cheat('god')); }
   Game.isInvuln = isInvuln;
   Game.hasBuff = hasBuff;
@@ -338,6 +360,8 @@
   function dealDamage(src, tgt, amt, o) {
     o = o || {};
     if (!tgt || tgt.dead || tgt.dormant || tgt.hidden) return 0;
+    // en groupe, chaque joueur gère lui-même les coups que reçoivent son héros et ses serviteurs
+    if (tgt.remote || (src && src.remote && !o.net)) return 0;
     if (tgt.faction === 'p') {
       if (tgt.isPlayer) {
         if (isInvuln(tgt)) { if (!cheat('god') && Math.random() < 0.3) text(tgt.x, tgt.y - 40, 'Immunisé', '#c9a227', 16); return 0; }
@@ -380,7 +404,7 @@
     // ----- cible ennemie -----
     if (tgt.shielded) { if (Math.random() < 0.25) text(tgt.x, tgt.y - tgt.r * 2 - 10, 'Protégé', '#c9a227', 18); return 0; }
     // garde levée : les soldats bloquent les coups de face, sauf pendant qu'ils frappent
-    if (tgt.def.guard && !tgt.cast && !(tgt.stunT > 0) && src && !o.isDot) {
+    if (tgt.def.guard && !o.net && !tgt.cast && !(tgt.stunT > 0) && src && !o.isDot) {
       const from = Math.atan2(src.y - tgt.y, src.x - tgt.x);
       if (Math.abs(G.angDiff(tgt.aim, from)) < 65 * DEG) {
         amt *= 1 - tgt.def.guard;
@@ -388,8 +412,11 @@
         parts(tgt.x + Math.cos(tgt.aim) * tgt.r, tgt.y - tgt.r, 3, '#c9ccd1', 'spark', 120);
       }
     }
-    tgt.hp -= amt; tgt.hitT = 0.12;
-    if (!tgt.aggro && !tgt.dummyUnit) aggroUnit(tgt);
+    if (tgt.puppet) { tgt.hitT = 0.12; if (G.Coop) G.Coop.hit(tgt, amt, o, src); } // monstre de l'hôte : on lui envoie le coup
+    else {
+      tgt.hp -= amt; tgt.hitT = 0.12;
+      if (!tgt.aggro && !tgt.dummyUnit) aggroUnit(tgt);
+    }
     const fromPlayer = src && src.isPlayer;
     if ((fromPlayer || (src && src.minion)) && G.opt('dmgNums')) {
       const big = o.crit;
@@ -409,15 +436,24 @@
       if (fromPlayer) tuto('hitDummy', tgt);
       return amt;
     }
-    if (tgt.hp <= 0) killUnit(tgt, src);
+    if (tgt.hp <= 0 && !tgt.puppet) killUnit(tgt, src);
     return amt;
   }
   Game.dealDamage = dealDamage;
+  // coup porté par un autre membre du groupe (reçu par l'hôte)
+  Game.netHit = (src, tgt, amt, o) => dealDamage(src, tgt, amt, Object.assign({}, o, { net: true }));
 
   function hitUnit(src, tgt, amt, o) {
     o = o || {};
     const done = dealDamage(src, tgt, amt, o);
     if (tgt.dead || tgt.faction === 'p' || tgt.dummyUnit) return done;
+    if (tgt.puppet) { if (G.Coop) G.Coop.hitFx(tgt, src, o); return done; }
+    hitFx(src, tgt, o);
+    return done;
+  }
+  // étourdissement, ralentissement, affaiblissement, recul
+  function hitFx(src, tgt, o) {
+    if (!tgt || tgt.dead) return;
     if (o.stun) {
       const res = tgt.boss ? 0.3 : tgt.elite ? 0.5 : 1;
       tgt.stunT = Math.max(tgt.stunT, o.stun * res); tgt.sleep = !!o.sleep;
@@ -430,8 +466,8 @@
       const a = Math.atan2(tgt.y - oy, tgt.x - ox);
       W.move(Game.scene.map, tgt, Math.cos(a) * o.knock * (tgt.elite ? 0.4 : 1), Math.sin(a) * o.knock * (tgt.elite ? 0.4 : 1));
     }
-    return done;
   }
+  Game.hitFx = hitFx;
 
   function healUnit(u, amt, quiet) {
     if (u.dead) return;
@@ -443,7 +479,11 @@
   }
 
   function gainRes(p, n) { p.res = G.clamp(p.res + n, 0, p.resMax); }
-  function cancelHazards(u) { const sc = Game.scene; sc.hazards = sc.hazards.filter((h) => !(h.src === u && h.follow)); }
+  function cancelHazards(u) {
+    const sc = Game.scene;
+    sc.hazards = sc.hazards.filter((h) => !(h.src === u && h.follow));
+    if (sc.coop && G.Coop) G.Coop.cancel(u);
+  }
 
   function aggroUnit(u) {
     if (u.aggro || u.dormant || u.dummyUnit) return;
@@ -456,15 +496,24 @@
     if (u.dead) return;
     u.dead = true; u.hp = 0;
     const sc = Game.scene;
+    if (sc.coop && G.Coop) G.Coop.onKill(u);
     parts(u.x, u.y - 8, 14, u.look === 'wisp' ? '#9be0d0' : '#2b2118', 'ink', 200);
     ring(u.x, u.y, u.r * 2.5, '#2b2118');
     cancelHazards(u);
     if (u.isPlayer) { Game.onPlayerDeath(); return; }
     if (u.minion) { if (u.bound) text(u.x, u.y - 40, 'Le serviteur retourne à la poussière', '#3f7d2a', 16); return; }
     decal(u.x, u.y + 2, u.r * 0.9, u.look === 'wisp' ? '#5a8a7a' : '#2b2118');
-    if (u.def.deathPool) { const P = u.def.deathPool; sc.zones.push({ id: G.uid(), kind: P.kind, x: u.x, y: u.y, r: P.r, dur: P.dur, t: 0, interval: 0.5, acc: 0, dmg: u.dmg * P.dmgMul, faction: 'e', src: null, color: P.color, sleepy: P.sleepy, slow: P.sleepy ? 0.2 : 0, cause: u.name }); }
-    if (u.def.illusion) { text(u.x, u.y - 40, 'Ce n\'était qu\'une illusion…', '#7b3fa6', 18); parts(u.x, u.y - 10, 18, '#9c7cc4', 'spark', 160); }
+    // chez un membre du groupe, les flaques, explosions, éclats et divisions arrivent de l'ordinateur du chef
+    if (!u.puppet) dyingFx(sc, u);
     if (u.look !== 'wisp' && !u.def.illusion) sc.corpses.push({ id: G.uid(), x: u.x, y: u.y, type: u.type, elite: u.elite, boss: u.boss, lvl: u.lvl, r: u.r, t: 0, life: u.boss ? 120 : 25, tried: false });
+    if (u.def.illusion) { text(u.x, u.y - 40, 'Ce n\'était qu\'une illusion…', '#7b3fa6', 18); parts(u.x, u.y - 10, 18, '#9c7cc4', 'spark', 160); }
+    // spectateur (héros tombé en groupe) : pas de récompense
+    if (sc.coop && Game.player && Game.player.dead) { if (u.boss) onBossDeath(u, true); return; }
+    rewards(sc, u);
+  }
+
+  function dyingFx(sc, u) {
+    if (u.def.deathPool) { const P = u.def.deathPool; sc.zones.push({ id: G.uid(), kind: P.kind, x: u.x, y: u.y, r: P.r, dur: P.dur, t: 0, interval: 0.5, acc: 0, dmg: u.dmg * P.dmgMul, faction: 'e', src: null, color: P.color, sleepy: P.sleepy, slow: P.sleepy ? 0.2 : 0, cause: u.name }); }
     // élite explosive
     if (u.explosive) {
       sc.hazards.push({ id: G.uid(), shape: 'circle', x: u.x, y: u.y, r: 95, t: 0, delay: 1.0, dmg: u.dmg * 1.8, faction: 'e', src: null, color: '#c4661a', bomb: true, cause: u.name + ' (explosion)' });
@@ -483,10 +532,13 @@
     if (u.def.split) for (let i = 0; i < u.def.split.n; i++) {
       const a = Math.random() * G.TAU, nx = u.x + Math.cos(a) * 18, ny = u.y + Math.sin(a) * 18;
       const free = !W.collides(sc.map, nx, ny, 9);
-      const c = makeMonster(u.def.split.into, free ? nx : u.x, free ? ny : u.y, u.lvl, false);
+      const c = scaleHp(sc, makeMonster(u.def.split.into, free ? nx : u.x, free ? ny : u.y, u.lvl, false));
       c.aggro = true; c.gcd = 0.6;
       sc.units.push(c);
     }
+  }
+
+  function rewards(sc, u) {
     const ch = Game.char;
     let xp = u.def.xp * (u.boss ? 1 : (1 + 0.3 * (u.lvl - 1)) * (u.elite ? 3 : 1));
     if (!u.boss && ch.lvl > u.lvl + 4) xp *= 0.2;
@@ -541,7 +593,8 @@
     return n;
   };
 
-  function onBossDeath(b) {
+  // ghost : héros tombé en groupe, qui regarde la fin du combat (pas de fragment)
+  function onBossDeath(b, ghost) {
     const sc = Game.scene, m = sc.map;
     if (b.spawnedBoss) { G.UI.toast(b.name + ' est vaincu !', '#7b3fa6', 3); ring(b.x, b.y, 180, '#c9a227', 0.6); return; } // boss invoqué en mode créateur
     m.gateLocked = false;
@@ -550,19 +603,22 @@
     sc.zones = sc.zones.filter((z) => z.faction !== 'e' || z.static);
     sc.invert = null; sc.eclipse = null; sc.storm = null;
     const r = b.bossRoom;
-    let px = (r.x + r.w / 2) * T, py = (r.y + r.h / 2) * T + 60;
+    let px = r ? (r.x + r.w / 2) * T : b.x, py = r ? (r.y + r.h / 2) * T + 60 : b.y + 60;
     if (W.collides(m, px, py, 20)) py -= 60;
+    if (W.collides(m, px, py, 20)) { px = b.x; py = b.y; }
     sc.portals.push({ id: G.uid(), x: px, y: py, victory: true });
     const ch = Game.char;
-    const first = ch.cleared < sc.def.id;
-    ch.cleared = Math.max(ch.cleared, sc.def.id);
+    // en groupe, un donjon pas encore débloqué pour ce héros ne lui donne pas de fragment
+    const unlocked = !ghost && Game.dungeonUnlocked(sc.def.id);
+    const first = unlocked && ch.cleared < sc.def.id;
+    if (unlocked) ch.cleared = Math.max(ch.cleared, sc.def.id);
     G.UI.bossBar(null);
-    G.UI.toast(first ? 'Fragment du Sceau obtenu ! Donjon suivant débloqué.' : b.name + ' est vaincu !', '#7b3fa6', 5);
+    G.UI.toast(first ? 'Fragment du Sceau obtenu ! Donjon suivant débloqué.' : ghost ? b.name + ' est vaincu par votre groupe !' : unlocked ? b.name + ' est vaincu !' : b.name + ' est vaincu ! (Donjon pas encore débloqué pour vous : pas de fragment.)', '#7b3fa6', 5);
     Game.shake(14);
     ring(b.x, b.y, 220, '#c9a227', 0.8);
     sc.units.forEach((u) => { if (u.faction === 'e' && u.summoned && !u.dead) killUnit(u, null); });
     // le Roi Cendré est tombé : le Sceau des Quinze est restauré
-    if (b.def.final) {
+    if (b.def.final && unlocked) {
       const legendBefore = !!ch.legend;
       ch.legend = true; ch.legendAt = ch.legendAt || Date.now();
       if (!legendBefore) sc.timers.push({ t: 3, fn: () => G.UI.showEnding && G.UI.showEnding({ name: ch.name, cls: ch.cls, lvl: ch.lvl, time: ch.time || 0, deaths: ch.deaths || 0, kills: Object.values(ch.kills || {}).reduce((a, n) => a + n, 0), hardcore: !!ch.hardcore }) });
@@ -871,7 +927,7 @@
   function execAttack(u, cast, tgt) {
     const sc = Game.scene, atk = cast.atk;
     const dmg = monDmg(u, atk);
-    u.swingT = 1;
+    u.swingT = 1; u.swingN = (u.swingN || 0) + 1;
     switch (atk.t) {
       case 'shoot': {
         const n = atk.count || 1, speed = atk.speed || 300;
@@ -927,14 +983,14 @@
         for (let i = 0; i < atk.steps; i++) {
           sc.hazards.push({ id: G.uid(), shape: 'line', x: u.x, y: u.y, ang: base + dir * i * atk.stepAng * DEG, len: atk.len, width: atk.width, t: 0, delay: atk.delay + i * atk.stepT, dmg, faction: u.faction, src: u, color: atk.color || '#9b6fe0' });
         }
-        text(u.x, u.y - u.r * 2 - 20, atk.say || 'Rayon !', atk.color || '#7b3fa6', 20);
+        shout(u, atk.say || 'Rayon !', atk.color || '#7b3fa6', 20);
         break;
       }
       case 'gust': {
         const a = Math.atan2(tgt.y - u.y, tgt.x - u.x);
         Game.gust(a, atk.strength, atk.dur, 0.25);
         ring(u.x, u.y, 160, '#9fb4c8', 0.5);
-        text(u.x, u.y - u.r * 2 - 20, 'Bourrasque !', '#5a6f86', 22);
+        shout(u, 'Bourrasque !', '#5a6f86', 22);
         break;
       }
       case 'tornado': {
@@ -944,7 +1000,7 @@
           if (W.collides(sc.map, x, y, 20)) { x = u.x; y = u.y; }
           sc.zones.push({ id: G.uid(), kind: 'tornado', warm: 0.6, x, y, r: atk.radius, dur: atk.dur, t: 0, interval: 0.5, acc: 0, dmg: u.dmg * atk.dmgMul, faction: u.faction, src: u, color: '#9fb4c8', chase: tgt, speed: atk.speed, cause: 'une tornade de ' + u.name });
         }
-        text(u.x, u.y - u.r * 2 - 20, 'Tornades !', '#5a6f86', 22);
+        shout(u, 'Tornades !', '#5a6f86', 22);
         break;
       }
       case 'whirlpool': {
@@ -955,12 +1011,12 @@
           if (W.solidAt(sc.map, x, y)) { x = tgt.x; y = tgt.y; }
           sc.zones.push({ id: G.uid(), kind: atk.kind || 'whirl', warm: 0.9, x, y, r: atk.radius, dur: atk.dur, t: 0, interval: 0.5, acc: 0, dmg: u.dmg * atk.dmgMul, faction: u.faction, src: u, color: atk.color || '#2f6f86', pull: atk.pull, slow: atk.slow, cause: 'un tourbillon de ' + u.name });
         }
-        text(u.x, u.y - u.r * 2 - 20, atk.say || 'Tourbillon !', atk.color || '#2f6f86', 22);
+        shout(u, atk.say || 'Tourbillon !', atk.color || '#2f6f86', 22);
         break;
       }
       case 'spiral':
         sc.emitters.push({ src: u, t: 0, dur: atk.dur, rate: atk.rate, acc: 0, arms: atk.arms, ang0: Math.random() * G.TAU, spin: atk.spin * (Math.random() < 0.5 ? 1 : -1), speed: atk.speed, dmg, color: atk.color || '#3b3346' });
-        text(u.x, u.y - u.r * 2 - 20, atk.say || 'Lecture interdite…', '#7b3fa6', 20);
+        shout(u, atk.say || 'Lecture interdite…', '#7b3fa6', 20);
         break;
       case 'charge':
         u.dash = { ang: cast.ang, speed: atk.dist / 0.4, t: 0.4, dmg, width: atk.width, hit: new Set(), trail: atk.trail ? Object.assign({ acc: 0 }, atk.trail) : null };
@@ -969,17 +1025,17 @@
         // bandelettes : la ligne attire la cible vers le monstre
         const pt = predict(tgt, 0.3), a = Math.atan2(pt.y - u.y, pt.x - u.x);
         sc.hazards.push({ id: G.uid(), shape: 'line', x: u.x, y: u.y, ang: a, len: atk.len, width: atk.width, t: 0, delay: atk.delay, dmg, faction: u.faction, src: u, color: atk.color || '#b8a070', yank: true });
-        text(u.x, u.y - u.r * 2 - 20, 'Bandelettes !', '#8a6a3a', 20);
+        shout(u, 'Bandelettes !', '#8a6a3a', 20);
         break;
       }
       case 'rain':
         sc.emitters.push({ kind: 'rain', src: u, tgt, atk, t: 0, dur: atk.dur, rate: atk.rate, acc: atk.rate, dmg, n: 0 });
-        text(u.x, u.y - u.r * 2 - 20, atk.say || 'Pluie !', atk.color || '#9b2c20', 22);
+        shout(u, atk.say || 'Pluie !', atk.color || '#9b2c20', 22);
         break;
       case 'invert':
         sc.invert = { t: -1, dur: atk.dur };
-        G.UI.toast('Cauchemar : vos commandes vont s\'inverser !', '#7b3fa6', 2.5);
-        text(u.x, u.y - u.r * 2 - 20, 'Cauchemar !', '#7b3fa6', 24);
+        bossToast('Cauchemar : vos commandes vont s\'inverser !', '#7b3fa6', 2.5);
+        shout(u, 'Cauchemar !', '#7b3fa6', 24);
         ring(Game.player.x, Game.player.y, 90, '#7b3fa6', 0.6);
         break;
       case 'voidpool': {
@@ -990,27 +1046,27 @@
           if (W.solidAt(sc.map, x, y)) { x = tgt.x; y = tgt.y; }
           sc.zones.push({ id: G.uid(), kind: 'void', warm: 0.8, x, y, r: atk.r0, r0: atk.r0, r1: atk.r1, grow: atk.dur * 0.6, dur: atk.dur, t: 0, interval: 0.5, acc: 0, dmg: u.dmg * atk.dmgMul, faction: u.faction, src: u, color: '#5a3f86', pull: 35, cause: 'le Néant de ' + u.name });
         }
-        text(u.x, u.y - u.r * 2 - 20, 'Le Néant s\'étend…', '#5a3f86', 22);
+        shout(u, 'Le Néant s\'étend…', '#5a3f86', 22);
         break;
       }
       case 'gravity':
         Game.gust(Math.atan2(u.y - tgt.y, u.x - tgt.x), atk.strength, atk.dur, 0.6);
         Game.scene.wind.toward = u;
         ring(u.x, u.y, 220, '#7b3fa6', 0.7);
-        text(u.x, u.y - u.r * 2 - 20, 'Attraction !', '#7b3fa6', 24);
+        shout(u, 'Attraction !', '#7b3fa6', 24);
         break;
       case 'eclipse':
         sc.eclipse = { t: 0, dur: atk.dur };
-        G.UI.toast(u.name + ' dévore la lumière !', '#3b3346', 2.5);
+        bossToast(u.name + ' dévore la lumière !', '#3b3346', 2.5);
         break;
       case 'storm':
         sc.storm = { t: 0, dur: atk.dur, str: atk.strength || 140, next: 0 };
-        G.UI.toast('Tempête de sable !', '#8a6a3a', 2.5);
+        bossToast('Tempête de sable !', '#8a6a3a', 2.5);
         break;
       case 'summon': {
         if (u.minion) break;
         for (let i = 0; i < atk.count; i++) spawnAdd(u, atk.mon, i, atk.count, atk.spread);
-        text(u.x, u.y - u.r * 2 - 20, 'Invocation !', '#9b2c20', 20);
+        shout(u, 'Invocation !', '#9b2c20', 20);
         break;
       }
       case 'shieldAdds': {
@@ -1018,7 +1074,7 @@
         let k = 0;
         atk.adds.forEach(([mon, n]) => { for (let i = 0; i < n; i++) ids.push(spawnAdd(u, mon, k++, 4).id); });
         u.shielded = { ids, t: atk.dur };
-        G.UI.toast(u.name + ' est protégé ! Abattez ses gardes pour briser le bouclier.', '#c9a227', 4);
+        bossToast(u.name + ' est protégé ! Abattez ses gardes pour briser le bouclier.', '#c9a227', 4);
         ring(u.x, u.y, 120, '#c9a227', 0.6);
         break;
       }
@@ -1058,7 +1114,7 @@
     }
     if (W.collides(sc.map, x, y, 14)) { x = u.x; y = u.y; }
     const lvl = Math.max(1, (sc.def ? sc.def.lvl : 1) + 1);
-    const m = makeMonster(mon, x, y, lvl, false);
+    const m = scaleHp(sc, makeMonster(mon, x, y, lvl, false));
     m.aggro = true; m.summoned = true;
     sc.units.push(m);
     parts(x, y, 10, '#2b2118', 'puff', 80);
@@ -1067,19 +1123,22 @@
 
   // ================= IA des unités =================
   function pickTarget(u) {
-    const sc = Game.scene, p = Game.player;
+    const sc = Game.scene;
     if (u.faction === 'e') {
       if (!u.aggro) {
-        if (!p.dead && !hasBuff(p, 'furtif') && G.dist(u, p) < D.DIFF.aggro && W.los(sc.map, u.x, u.y, p.x, p.y)) aggroUnit(u);
+        // un héros (le vôtre ou celui d'un autre membre du groupe) passe à portée
+        const seen = (sc.plist || [Game.player]).some((p) => !p.dead && !hasBuff(p, 'furtif') && G.dist(u, p) < D.DIFF.aggro && W.los(sc.map, u.x, u.y, p.x, p.y));
+        if (seen) aggroUnit(u);
         else return null;
       }
       let best = null, bd = 1e9;
       sc.units.forEach((o) => {
         if (o.faction !== 'p' || o.dead) return;
-        if (o.isPlayer && hasBuff(o, 'furtif') && G.dist(u, o) > 45) return;
+        const hero = o.isPlayer || o.isAlly;
+        if (hero && hasBuff(o, 'furtif') && G.dist(u, o) > 45) return;
         let d = G.dist(u, o);
         if (o === u.target) d -= 60;
-        if (o.isPlayer) d -= 30;
+        if (hero) d -= 30;
         if (d < bd) { bd = d; best = o; }
       });
       u.target = best;
@@ -1152,7 +1211,7 @@
       const guards = u.shielded.ids.some((id) => sc.units.some((o) => o.id === id && !o.dead));
       if (!guards || u.shielded.t <= 0) {
         u.shielded = null;
-        G.UI.toast('Le bouclier de ' + u.name + ' se brise !', '#c9a227', 3);
+        bossToast('Le bouclier de ' + u.name + ' se brise !', '#c9a227', 3);
         ring(u.x, u.y, 140, '#c9a227', 0.5); Game.shake(8);
       }
     }
@@ -1179,15 +1238,18 @@
       return;
     }
     if (u.dormant) {
-      const p = Game.player, r = u.bossRoom;
-      if (u.boss && r && p.x > (r.x + 0.6) * T && p.x < (r.x + r.w - 0.6) * T && p.y > (r.y + 0.6) * T && p.y < (r.y + r.h - 0.6) * T) activateBoss(u);
+      const r = u.bossRoom;
+      if (u.boss && r) {
+        const who = (sc.plist || [Game.player]).find((p) => !p.dead && p.x > (r.x + 0.6) * T && p.x < (r.x + r.w - 0.6) * T && p.y > (r.y + 0.6) * T && p.y < (r.y + r.h - 0.6) * T);
+        if (who) activateBoss(u, who);
+      }
       return;
     }
     if (u.boss) {
       u.fightT = (u.fightT || 0) + dt;
       if (u.fightT > (u.def.enrage || D.DIFF.enrage) && !u.enraged) {
         u.enraged = true; u.dmg *= 2; u.speedMul = (u.speedMul || 1) * 1.2;
-        G.UI.toast(u.name + ' entre dans une RAGE folle ! (dégâts ×2)', '#9b2c20', 5);
+        bossToast(u.name + ' entre dans une RAGE folle ! (dégâts ×2)', '#9b2c20', 5);
         ring(u.x, u.y, 200, '#9b2c20', 0.8); Game.shake(12);
       }
       if (u.def.phases && !u.cast) {
@@ -1197,7 +1259,7 @@
         if (ph !== u.phase) {
           u.phase = ph;
           const P = u.def.phases[ph];
-          if (P.msg) G.UI.toast(P.msg, '#9b2c20', 4);
+          if (P.msg) bossToast(P.msg, '#9b2c20', 4);
           u.speedMul = (P.speedMul || 1) * (u.enraged ? 1.2 : 1);
           u.atkCd = {};
           P.atks.forEach((a, i) => (u.atkCd[ph + '_' + i] = 0.5 + i * 0.6));
@@ -1222,6 +1284,7 @@
       u.cast.t += dt;
       if (u.cast.t >= u.cast.windup) {
         const c = u.cast;
+        u.cast = null; // (avant l'attaque : jamais deux fois la même, même en cas d'erreur)
         execAttack(u, c, tgt);
         if (c.atk.t === 'combo' && c.left > 0 && !u.dead) {
           // coup suivant de l'enchaînement : le monstre avance et frappe à nouveau
@@ -1238,7 +1301,7 @@
     const d = G.dist(u, tgt);
     const vis = W.los(sc.map, u.x, u.y, tgt.x, tgt.y);
     if (u.def.blink && (u.blinkCd || 0) <= 0 && d < u.def.blink.range && !u.minion) blinkAway(u, tgt);
-    if (u.def.stalk && !u.minion && tgt.isPlayer) {
+    if (u.def.stalk && !u.minion && (tgt.isPlayer || tgt.isAlly)) {
       u.stalkCd = (u.stalkCd == null ? G.rnd(1, 3) : u.stalkCd) - dt;
       if (u.stalkCd <= 0 && d > u.def.stalk.range) {
         u.stalkCd = u.def.stalk.cd;
@@ -1282,9 +1345,10 @@
   function chase(u, tgt, spd, dt, vis) {
     const sc = Game.scene;
     const ox = u.x, oy = u.y;
-    if ((vis && !(u.forceFlow > 0)) || !tgt.isPlayer || !sc.map.dist) moveToward(u, tgt.x, tgt.y, spd, dt);
+    const F = tgt.isPlayer ? null : tgt.flow; // chemin calculé vers un autre héros du groupe
+    if ((vis && !(u.forceFlow > 0)) || !(tgt.isPlayer || F) || !sc.map.dist) moveToward(u, tgt.x, tgt.y, spd, dt);
     else {
-      const fd = W.flowDir(sc.map, u.x, u.y, u.r > 17);
+      const fd = W.flowDir(sc.map, u.x, u.y, u.r > 17, F);
       if (fd) moveToward(u, fd[0], fd[1], spd, dt);
       else moveToward(u, tgt.x, tgt.y, spd, dt);
     }
@@ -1294,12 +1358,13 @@
     if (u.forceFlow > 0) u.forceFlow -= dt;
   }
 
-  function activateBoss(b) {
+  function activateBoss(b, who) {
     const sc = Game.scene;
     b.dormant = false; b.aggro = true;
     sc.map.gateLocked = true;
+    if (sc.coop && G.Coop) G.Coop.bossStart(b, who || Game.player);
     G.UI.bossBar(b);
-    G.UI.toast(b.name + ' : ' + (b.def.intro || ''), '#9b2c20', 5);
+    bossToast(b.name + ' : ' + (b.def.intro || ''), '#9b2c20', 5);
     Game.shake(8);
     ring(b.x, b.y, 200, '#9b2c20', 0.7);
     sc.units.forEach((u) => { if (u.minion && !u.dead) { u.x = Game.player.x + G.rnd(-30, 30); u.y = Game.player.y + G.rnd(-30, 30); if (W.collides(sc.map, u.x, u.y, u.r)) { u.x = Game.player.x; u.y = Game.player.y; } } });
@@ -1472,14 +1537,15 @@
     const sc = Game.scene;
     sc.wind = { ang, str: strength, dur, t: -(warn || 0) };
   };
+  const isMember = (sc) => !!(sc.coop && sc.coop.role === 'member');
   function updateWind(sc, dt) {
     const p = Game.player;
-    if (sc.kind === 'dungeon' && sc.def && sc.def.wind && !sc.wind) {
+    if (sc.kind === 'dungeon' && sc.def && sc.def.wind && !sc.wind && !isMember(sc)) {
       sc.windTimer = (sc.windTimer == null ? 8 : sc.windTimer) - dt;
       if (sc.windTimer <= 0) {
         sc.windTimer = G.rnd(9, 14);
         Game.gust(Math.floor(Math.random() * 8) * (Math.PI / 4), 115, 1.8, 1.0);
-        G.UI.toast('Le vent se lève…', '#5a6f86', 1.6);
+        bossToast('Le vent se lève…', '#5a6f86', 1.6);
       }
     }
     const w = sc.wind;
@@ -1491,27 +1557,29 @@
     const k = w.str * dt * Math.min(1, (w.dur - w.t) * 2 + 0.2);
     const dx = Math.cos(w.ang) * k, dy = Math.sin(w.ang) * k;
     if (p && !p.dead && !p.dash) W.move(sc.map, p, dx, dy);
-    sc.units.forEach((u) => { if (!u.isPlayer && alive(u) && !u.boss && !u.def.flying && !u.dummyUnit && u.speed > 0) W.move(sc.map, u, dx * 0.7, dy * 0.7); });
+    sc.units.forEach((u) => { if (!u.isPlayer && !u.netCtl && alive(u) && !u.boss && !u.def.flying && !u.dummyUnit && u.speed > 0) W.move(sc.map, u, dx * 0.7, dy * 0.7); });
   }
 
   // ================= Pièges propres à certains donjons =================
   function updateEnv(sc, dt) {
     const p = Game.player;
-    if (sc.kind === 'dungeon' && sc.def && sc.def.env && !sc.victory && p && !p.dead) {
+    const heroes = (sc.plist || [p]).filter((h) => h && !h.dead);
+    if (sc.kind === 'dungeon' && sc.def && sc.def.env && !sc.victory && heroes.length && !isMember(sc)) {
       sc.envT = (sc.envT == null ? 14 : sc.envT) - dt;
       if (sc.envT <= 0) {
         const env = sc.def.env;
         if (env === 'sandstorm') {
           sc.envT = G.rnd(20, 28);
-          if (!sc.storm) { sc.storm = { t: 0, dur: 6, str: 115, next: 1 }; G.UI.toast('Une tempête de sable se lève !', '#8a6a3a', 2); }
+          if (!sc.storm) { sc.storm = { t: 0, dur: 6, str: 115, next: 1 }; bossToast('Une tempête de sable se lève !', '#8a6a3a', 2); }
         } else if (env === 'eclipse') {
           sc.envT = G.rnd(26, 36);
-          if (!sc.eclipse) { sc.eclipse = { t: 0, dur: 6 }; G.UI.toast('L\'éclipse approche… la lumière s\'éteint.', '#3b3346', 2); }
+          if (!sc.eclipse) { sc.eclipse = { t: 0, dur: 6 }; bossToast('L\'éclipse approche… la lumière s\'éteint.', '#3b3346', 2); }
         } else if (env === 'ashrain') {
           sc.envT = G.rnd(7, 11);
+          const tg = G.pick(heroes);
           for (let i = 0; i < 3; i++) {
             const a = Math.random() * G.TAU, d = i === 0 ? 0 : G.rnd(60, 150);
-            const pt = i === 0 ? predict(p, 0.6) : { x: p.x + Math.cos(a) * d, y: p.y + Math.sin(a) * d };
+            const pt = i === 0 ? predict(tg, 0.6) : { x: tg.x + Math.cos(a) * d, y: tg.y + Math.sin(a) * d };
             if (W.solidAt(sc.map, pt.x, pt.y)) continue;
             sc.hazards.push({ id: G.uid(), shape: 'circle', x: pt.x, y: pt.y, r: 46, t: 0, delay: 1.25 + i * 0.15, dmg: envDmg(sc.def) * 0.8, faction: 'e', src: null, color: '#d0571b', drop: 'ash', cause: 'la pluie de cendres' });
           }
@@ -1522,7 +1590,7 @@
       const st = sc.storm;
       st.t += dt; st.next -= dt;
       if (st.t >= st.dur) sc.storm = null;
-      else if (st.next <= 0 && !sc.wind) { st.next = G.rnd(1.5, 2.3); Game.gust(Math.floor(Math.random() * 8) * (Math.PI / 4), st.str, 1.2, 0.6); }
+      else if (st.next <= 0 && !sc.wind && !st.visual) { st.next = G.rnd(1.5, 2.3); Game.gust(Math.floor(Math.random() * 8) * (Math.PI / 4), st.str, 1.2, 0.6); }
     }
     if (sc.eclipse) { sc.eclipse.t += dt; if (sc.eclipse.t >= sc.eclipse.dur) sc.eclipse = null; }
     if (sc.invert) {
@@ -1544,6 +1612,8 @@
     Game.mouse.wx = Game.mouse.x + Game.cam.x;
     Game.mouse.wy = Game.mouse.y + Game.cam.y;
 
+    // héros présents : le vôtre et, en ligne, ceux des autres joueurs
+    sc.plist = sc.units.filter((u) => u.isPlayer || (u.isAlly && u.remote));
     updatePlayer(p, dt);
     if (Game.mode !== 'play') return;
     if (sc.kind === 'dungeon') {
@@ -1555,7 +1625,11 @@
       const tx = Math.floor(p.x / T), ty = Math.floor(p.y / T);
       if (!m.flowT || m.flowT[0] !== tx || m.flowT[1] !== ty) W.flow(m, tx, ty);
     }
-    for (const u of sc.units) if (!u.isPlayer && !u.dead) updateUnit(u, dt);
+    for (const u of sc.units) {
+      if (u.isPlayer || u.dead) continue;
+      if (u.netCtl) tickNet(u, dt); // piloté par le réseau (autre joueur, monstre de l'hôte)
+      else updateUnit(u, dt);
+    }
     if (Game.mode !== 'play') return;
     separate(sc);
     sc.timers.forEach((t) => (t.t -= dt));
@@ -1577,13 +1651,14 @@
     sc.texts = sc.texts.filter((t) => t.t < t.life);
     sc.parts.forEach((q) => { q.t += dt; if (q.vx != null) { q.x += q.vx * dt; q.y += q.vy * dt; q.vx *= 0.9; q.vy = q.vy * 0.9 + (q.kind === 'puff' ? -20 : 200) * dt; } });
     sc.parts = sc.parts.filter((q) => q.t < q.life);
-    sc.units = sc.units.filter((u) => !u.dead || u.isPlayer);
-    if (sc.boss && !sc.boss.dormant && !sc.boss.dead) G.UI.bossBar(sc.boss);
+    if (sc.coop && G.Coop) { G.Coop.update(sc, dt); if (Game.scene !== sc) return; }
+    sc.units = sc.units.filter((u) => !u.dead || u.isPlayer || u.keep);
+    if (sc.boss && !sc.boss.dormant && !sc.boss.dead && !p.dead) G.UI.bossBar(sc.boss);
     if (sc.kind === 'tuto' && G.Tuto) G.Tuto.update(dt);
     if (Game.scene !== sc) return;
-    sc.prompt = findInteract(sc, p);
-    const cam = Game.cam;
-    const tx = p.x - Game.W / 2, ty = p.y - 10 - Game.H / 2;
+    sc.prompt = p.dead ? null : findInteract(sc, p);
+    const cam = Game.cam, f = Game.focus();
+    const tx = f.x - Game.W / 2, ty = f.y - 10 - Game.H / 2;
     cam.x += (tx - cam.x) * Math.min(1, dt * 8);
     cam.y += (ty - cam.y) * Math.min(1, dt * 8);
     cam.x = G.clamp(cam.x, 0, Math.max(0, m.w * T - Game.W));
@@ -1591,14 +1666,36 @@
     if (cam.shake > 0) cam.shake = Math.max(0, cam.shake - dt * 30);
   };
 
+  // Les corps se repoussent. Les monstres de l'hôte (chez un membre) ne bougent pas ; les autres héros ne bloquent personne.
+  function tickNet(u, dt) {
+    if (u.hitT > 0) u.hitT -= dt;
+    if (u.swingT > 0) u.swingT = Math.max(0, u.swingT - dt * 4);
+    if (u.puppet && u.dots.length) {
+      for (const d of u.dots) {
+        d.acc += dt; d.t -= dt;
+        while (d.acc >= 0.5 && !u.dead) { d.acc -= 0.5; dealDamage(d.src, u, d.dps * 0.5, { isDot: true }); }
+      }
+      u.dots = u.dots.filter((d) => d.t > 0);
+    }
+  }
+
+  // Le héros que suit la caméra (en groupe, un héros tombé regarde ses alliés)
+  Game.focus = function () {
+    const p = Game.player, sc = Game.scene;
+    if (p && p.dead && sc && sc.coop) return sc.units.find((u) => u.isAlly && u.remote && !u.dead) || p;
+    return p;
+  };
+
   function separate(sc) {
-    const us = sc.units.filter((u) => alive(u));
+    const town = sc.kind !== 'dungeon';
+    const us = sc.units.filter((u) => alive(u) && !(u.netCtl && (town || u.remote)));
     for (let i = 0; i < us.length; i++) for (let j = i + 1; j < us.length; j++) {
       const a = us[i], b = us[j];
       const dx = b.x - a.x, dy = b.y - a.y, d = Math.hypot(dx, dy), min = (a.r + b.r) * 0.85;
       if (d > 0 && d < min) {
         const push = (min - d) / 2, nx = dx / d, ny = dy / d;
-        const wa = a.isPlayer ? 0.3 : a.boss || a.dummyUnit ? 0 : 1, wb = b.isPlayer ? 0.3 : b.boss || b.dummyUnit ? 0 : 1;
+        const wa = a.netCtl ? 0 : a.isPlayer ? 0.3 : a.boss || a.dummyUnit ? 0 : 1, wb = b.netCtl ? 0 : b.isPlayer ? 0.3 : b.boss || b.dummyUnit ? 0 : 1;
+        if (!wa && !wb) continue;
         if (!a.dash && wa) W.move(sc.map, a, -nx * push * wa, -ny * push * wa);
         if (!b.dash && wb) W.move(sc.map, b, nx * push * wb, ny * push * wb);
       }
@@ -1639,6 +1736,13 @@
       for (const u of sc.units) {
         if (u.faction === pr.faction || !alive(u) || pr.hit.has(u.id)) continue;
         if (Math.hypot(u.x - pr.x, u.y - 10 - pr.y) > u.r + pr.r + 2) continue;
+        // projectile d'un autre joueur, ou cible gérée par un autre ordinateur : il disparaît sans dégâts
+        if (pr.visual || u.remote) {
+          pr.hit.add(u.id);
+          if (pr.aoe) { explodeProj(sc, pr); pr.dead = true; break; }
+          if (--pr.pierce < 0) { pr.dead = true; break; }
+          continue;
+        }
         if (pr.aoe) { explodeProj(sc, pr); pr.dead = true; break; }
         pr.hit.add(u.id);
         if (pr.mult) {
@@ -1661,7 +1765,7 @@
     if (!pr.aoe) return;
     ring(pr.x, pr.y, pr.aoe, pr.color || '#d0571b', 0.35);
     decal(pr.x, pr.y + 10, pr.aoe * 0.35, '#3a2a1a', 'scorch');
-    if (pr.faction === 'p' && pr.mult) playerAoe(pr.src, pr.x, pr.y + 10, pr.aoe, pr.mult, { bonus: pr.bonus });
+    if (pr.faction === 'p' && pr.mult && !pr.visual && pr.src) playerAoe(pr.src, pr.x, pr.y + 10, pr.aoe, pr.mult, { bonus: pr.bonus });
     Game.shake(3);
   }
 
@@ -1673,7 +1777,8 @@
       h.dead = true;
       if (h.warnOnly) continue;
       let hitPlayer = false;
-      sc.units.filter((u) => u.faction !== h.faction && alive(u)).forEach((u) => {
+      // (attaque d'un autre joueur : seulement l'effet visuel)
+      if (!h.visual) sc.units.filter((u) => u.faction !== h.faction && alive(u) && !u.remote).forEach((u) => {
         let inside;
         if (h.shape === 'circle') inside = inEllipse(h.x, h.y, h.r, u);
         else if (h.shape === 'cone') inside = inCone(h.x, h.y, h.ang, h.r, h.arc, u);
@@ -1700,12 +1805,12 @@
         }
       });
       if (h.faction === 'e' && h.src && h.src.def && h.src.def.dummy) tuto(hitPlayer ? 'runeHit' : 'dodge');
-      if (h.pool) sc.zones.push({ id: G.uid(), kind: h.pool.kind, x: h.x, y: h.y, r: h.r * 0.9, dur: h.pool.dur, t: 0, interval: 0.5, acc: 0, dmg: h.pool.dmg, faction: h.faction, src: h.src, color: h.pool.color, poison: h.poison });
+      if (h.pool) sc.zones.push({ id: G.uid(), kind: h.pool.kind, x: h.x, y: h.y, r: h.r * 0.9, dur: h.pool.dur, t: 0, interval: 0.5, acc: 0, dmg: h.pool.dmg, faction: h.faction, src: h.src, color: h.pool.color, poison: h.poison, derived: true, visual: h.visual });
       if (h.linePool) {
         const P = h.linePool, n = Math.max(2, Math.floor(h.len / (h.width * 2.2)));
         for (let i = 0; i < n; i++) {
           const f = (i + 0.5) / n, x = h.x + Math.cos(h.ang) * h.len * f, y = h.y + Math.sin(h.ang) * h.len * f;
-          if (!W.solidAt(sc.map, x, y)) sc.zones.push({ id: G.uid(), kind: P.kind, x, y, r: h.width * 0.6, dur: P.dur, t: 0, interval: 0.5, acc: 0, dmg: P.dmg, faction: h.faction, src: h.src, color: P.color, cause: 'un sillon de braises' });
+          if (!W.solidAt(sc.map, x, y)) sc.zones.push({ id: G.uid(), kind: P.kind, x, y, r: h.width * 0.6, dur: P.dur, t: 0, interval: 0.5, acc: 0, dmg: P.dmg, faction: h.faction, src: h.src, color: P.color, cause: 'un sillon de braises', derived: true, visual: h.visual });
         }
       }
       if (h.shape === 'circle') {
@@ -1729,8 +1834,8 @@
         const a = Math.atan2(z.chase.y - z.y, z.chase.x - z.x), nx = z.x + Math.cos(a) * z.speed * dt, ny = z.y + Math.sin(a) * z.speed * dt;
         if (!W.solidAt(sc.map, nx, ny)) { z.x = nx; z.y = ny; }
       }
-      if (z.pull) sc.units.forEach((u) => {
-        if (u.faction === z.faction || !alive(u) || u.boss || (u.isPlayer && (u.dash || isInvuln(u)))) return;
+      if (z.pull && !z.visual) sc.units.forEach((u) => {
+        if (u.faction === z.faction || !alive(u) || u.boss || u.netCtl || (u.isPlayer && (u.dash || isInvuln(u)))) return;
         const d = Math.hypot(u.x - z.x, u.y - z.y);
         if (d > z.r * 1.7 || d < 6) return;
         const k = z.pull * dt * (1 - d / (z.r * 1.9));
@@ -1739,8 +1844,9 @@
       z.acc += dt;
       while (z.acc >= z.interval) {
         z.acc -= z.interval;
+        if (z.visual) continue;
         sc.units.forEach((u) => {
-          if (u.faction === z.faction || !alive(u) || !inEllipse(z.x, z.y, z.r, u)) return;
+          if (u.faction === z.faction || !alive(u) || u.remote || !inEllipse(z.x, z.y, z.r, u)) return;
           if (z.mult) { const rd = rollDmg(z.src, z.mult); hitUnit(z.src, u, rd.d, { crit: rd.crit, slow: z.slow, weaken: z.weaken, isDot: true }); }
           else {
             if (z.dmg) dealDamage(z.src && !z.src.dead ? z.src : null, u, z.dmg, { isDot: true, cause: z.cause });
@@ -1760,6 +1866,7 @@
 
   function updateDrops(sc, dt, p) {
     const ch = Game.char;
+    if (p.dead) return;
     for (const d of sc.drops) {
       d.t += dt;
       if (d.t < 0.4) continue;
@@ -1800,7 +1907,9 @@
       else consider(n.x, n.y, (n.look === 'portal' ? 'Utiliser le ' : 'Parler à ') + n.name, () => G.UI.openPanel(n.role), n.look === 'portal' ? 90 : 64);
     });
     sc.chests.forEach((c) => { if (!c.opened) consider(c.x, c.y, 'Ouvrir le coffre', () => openChest(c)); });
-    sc.portals.forEach((pt) => consider(pt.x, pt.y, pt.victory ? 'Retourner à Havre-Gris' : 'Quitter le donjon', () => (pt.victory ? Game.leaveDungeon(true) : G.UI.confirm('Quitter le donjon ?', 'Le butin déjà ramassé est conservé, mais le donjon sera réinitialisé (monstres et boss).', 'Quitter', () => Game.leaveDungeon(false))), 70));
+    const hostTxt = sc.coop && sc.coop.role === 'host' && sc.units.some((u) => u.isAlly && u.remote) ? ' Votre ordinateur fait vivre ce donjon : il se terminera aussi pour le reste du groupe.' : '';
+    sc.portals.forEach((pt) => consider(pt.x, pt.y, pt.victory ? 'Retourner à Havre-Gris' : 'Quitter le donjon', () => (pt.victory ? Game.leaveDungeon(true) : G.UI.confirm('Quitter le donjon ?', 'Le butin déjà ramassé est conservé, mais le donjon sera réinitialisé (monstres et boss).' + hostTxt, 'Quitter', () => Game.leaveDungeon(false))), 70));
+    if (G.Net) G.Net.interactions(sc, p, consider);
     return best;
   }
   Game.interact = function () {
@@ -1828,6 +1937,7 @@
 
   Game.leaveDungeon = function (victory) {
     const sc = Game.scene, ch = Game.char;
+    if (sc.coop && G.Coop) G.Coop.onLeave(victory);
     secureLoot();
     if (sc.usedBound) ch.boundBoss = null;
     const run = sc.run;
@@ -1845,6 +1955,11 @@
       G.UI.toast('La sergente Brenna vous relève : « Debout, recrue ! Ici, on apprend. »', '#8c3b2a', 4);
       return;
     }
+    // en groupe : le héros tombé regarde ses alliés (les pénalités s'appliquent tout de suite)
+    if (sc.coop && G.Coop) {
+      if (!ch.hardcore) { G.Coop.onLocalDeath(deathPenalty(sc, ch, p)); return; }
+      G.Coop.onLocalDeath(null, true);
+    }
     Game.mode = 'dead';
     G.UI.bossBar(null);
     if (ch.hardcore) {
@@ -1860,6 +1975,12 @@
       setTimeout(() => G.UI.showHardcoreDeath(mem), 1100);
       return;
     }
+    const lost = deathPenalty(sc, ch, p);
+    setTimeout(() => G.UI.showDeath(lost), 900);
+  };
+
+  // Pénalités de mort : butin du donjon, 25 % de l'or, un objet équipé détruit
+  function deathPenalty(sc, ch, p) {
     const lost = { items: [], gold: 0, destroyed: null, dungeon: sc.kind === 'dungeon' ? sc.def.name : 'Havre-Gris' };
     ch.bag = ch.bag.filter((it) => { if (it.run) { lost.items.push(it); return false; } return true; });
     D.SLOTS.forEach((s) => { const it = ch.equip[s]; if (it && it.run) { lost.items.push(it); ch.equip[s] = null; } });
@@ -1869,9 +1990,11 @@
     if (slots.length) { const s = G.pick(slots); lost.destroyed = ch.equip[s]; ch.equip[s] = null; }
     if (sc.usedBound) ch.boundBoss = null;
     ch.deaths++;
-    Game.save(true);
-    setTimeout(() => G.UI.showDeath(lost), 900);
-  };
+    Game.refreshStats();
+    if (p) p.hp = 0;
+    G.Save.save(true, true);
+    return lost;
+  }
 
   // ================= Inventaire =================
   Game.equip = function (idx) {

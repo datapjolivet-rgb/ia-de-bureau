@@ -172,6 +172,14 @@
       if (UI.currentPanel() === 'creator') UI.closePanel(); else UI.openPanel('creator');
       return;
     }
+    // jeu en ligne : discussion et liste des joueurs
+    if (acts.includes('chat') && Game.mode === 'play' && G.Net && G.Net.online && !UI.currentPanel()) { e.preventDefault(); G.Net.openChat(); return; }
+    if (acts.includes('social') && Game.mode === 'play' && G.Net && G.Net.available) {
+      e.preventDefault();
+      const cur = UI.currentPanel();
+      if (cur === 'players') UI.closePanel(); else if (!['menu', 'keys', 'options', 'creator'].includes(cur)) UI.openPanel('players');
+      return;
+    }
     if (acts.length || NO_SCROLL.includes(e.code)) e.preventDefault();
     Game.keys[e.code] = true;
     if (e.repeat) return;
@@ -192,6 +200,7 @@
         G.UI.update();
       }
     } catch (err) { console.error(err); }
+    try { if (G.Net) G.Net.update(dt); } catch (err) { console.error(err); }
     requestAnimationFrame(frame);
   }
 

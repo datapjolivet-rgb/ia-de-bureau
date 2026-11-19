@@ -1,0 +1,13 @@
+{
+  "name": "valdorne-serveur",
+  "private": true,
+  "description": "Serveur multijoueur des Chroniques de Valdorne (Cloudflare Workers + Durable Objects)",
+  "scripts": {
+    "build": "node build.js",
+    "dev": "node build.js && wrangler dev",
+    "deploy": "node build.js && wrangler deploy"
+  },
+  "devDependencies": {
+    "wrangler": "^4.20.0"
+  }
+}

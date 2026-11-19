@@ -64,7 +64,8 @@
   }
   function setHint() {
     const h = $('hint'), In = G.Input;
-    if (h) h.textContent = `${In.moveLabel()} bouger · ${In.shortLabel('attack')} attaquer · ${spellKeys()} sorts · ${In.shortLabel('potion')} potion · ${In.shortLabel('interact')} interagir · ${In.shortLabel('inventory')} inventaire · ${In.shortLabel('menu')} menu`;
+    const online = G.Net && G.Net.online ? ` · ${In.shortLabel('chat')} discuter · ${In.shortLabel('social')} joueurs` : '';
+    if (h) h.textContent = `${In.moveLabel()} bouger · ${In.shortLabel('attack')} attaquer · ${spellKeys()} sorts · ${In.shortLabel('potion')} potion · ${In.shortLabel('interact')} interagir · ${In.shortLabel('inventory')} inventaire${online} · ${In.shortLabel('menu')} menu`;
   }
   // Après un changement de touche : barre d'action, aide, panneau ouvert, tutoriel
   UI.refreshLabels = function () {
@@ -167,12 +168,14 @@
 
   // ================= Panneaux =================
   UI.panelOpen = () => panelId != null || !$('screen').hidden;
+  // en donjon de groupe, le jeu ne se met jamais en pause (les autres joueurs continuent)
+  UI.noPause = () => !!(Game.scene && Game.scene.coop);
   UI.currentPanel = () => panelId;
   UI.openPanel = function (id) {
     if (Game.mode !== 'play') return;
     panelId = id; forgeSel = null;
     $('panel').hidden = false;
-    if (id === 'menu' || id === 'keys' || id === 'options' || id === 'creator') Game.paused = true;
+    if ((id === 'menu' || id === 'keys' || id === 'options' || id === 'creator') && !UI.noPause()) Game.paused = true;
     if (id !== 'keys') UI.capturing = null;
     UI.refreshPanel();
   };
@@ -314,24 +317,33 @@
       return { title: 'Garnison — Capitaine Aldric', sub: 'Quêtes', body };
     },
     portal() {
-      const ch = Game.char;
+      const ch = Game.char, Net = G.Net, party = Net && Net.online && Net.party;
+      const follower = party && !Net.isLeader();
       const cards = D.DUNGEONS.map((d) => {
-        const unlocked = Game.dungeonUnlocked(d.id), done = ch.cleared >= d.id;
+        const unlocked = Game.dungeonUnlocked(d.id) && !follower, done = ch.cleared >= d.id;
         const boss = d.boss ? D.MONSTERS[d.boss].name : d.bossName;
         let status, cls = 'dcard';
         if (!d.playable) { status = '<span class="muted">En construction</span>'; cls += ' lock'; }
-        else if (!unlocked) { status = '<span style="color:var(--blood)">Verrouillé : vaincre le donjon ' + (d.id - 1) + '</span>'; cls += ' lock'; }
+        else if (!unlocked) { status = follower ? '<span class="muted">Le chef du groupe choisit</span>' : '<span style="color:var(--blood)">Verrouillé : vaincre le donjon ' + (d.id - 1) + '</span>'; cls += ' lock'; }
         else { status = done ? '<span style="color:var(--heal)">Vaincu — rejouable</span>' : '<span style="color:var(--violet)">Disponible</span>'; cls += ' ok'; }
         return `<div class="${cls}" ${d.playable && unlocked ? `data-dun="${d.id}" tabindex="0" role="button"` : ''}><h3>${d.id}. ${d.name}</h3><span>Niveau conseillé ${d.lvl}+ · Boss : ${esc(boss)}</span>${status}</div>`;
       }).join('');
-      return { title: 'Portail des Donjons', sub: 'Choisissez votre destination', body: `<p style="margin:0 0 10px">Les donjons ont toujours le même plan. À la mort : retour en ville, perte de 25 % de l'or, de tout le butin du donjon et d'un objet équipé au hasard.</p><div class="dgrid">${cards}</div>` };
+      let grp = '';
+      if (party) {
+        const names = party.members.filter((m) => m.id !== Net.myId).map((m) => esc(m.name)).join(', ');
+        const away = party.members.filter((m) => m.id !== Net.myId && m.scene !== 'town').map((m) => esc(m.name));
+        grp = follower
+          ? `<div class="say"><b>Groupe :</b> seul le chef (${esc((party.members.find((m) => m.id === party.leader) || {}).name || '?')}) peut ouvrir un donjon ; vous y entrerez avec lui. Pour jouer seul, quittez le groupe (touche ${esc(G.Input.shortLabel('social'))}).</div>`
+          : `<div class="say"><b>Groupe de ${party.members.length} :</b> ${names} entreront avec vous. Les monstres ont ${Math.round(((G.Coop ? G.Coop.hpMul(party.members.length) : 1) - 1) * 100)} % de vie en plus ; chacun ramasse son propre butin.${away.length ? `<br><span style="color:var(--blood)">${away.join(', ')} doi${away.length > 1 ? 'vent' : 't'} d'abord revenir en ville.</span>` : ''}</div>`;
+      }
+      return { title: 'Portail des Donjons', sub: party ? (follower ? 'Votre chef de groupe choisit la destination' : 'Choisissez la destination du groupe') : 'Choisissez votre destination', body: `${grp}<p style="margin:0 0 10px">Les donjons ont toujours le même plan. À la mort : retour en ville, perte de 25 % de l'or, de tout le butin du donjon et d'un objet équipé au hasard.</p><div class="dgrid">${cards}</div>` };
     },
     guild() {
       return {
         title: 'Taverne des Guildes', sub: 'Tavernière Maëlle',
-        body: `<div class="say"><b>Maëlle :</b> « Les guildes ? Bientôt, mon brave ! Quand les autres héros de Valdorne pourront rejoindre Havre-Gris, c'est ici qu'on fondera les confréries. »</div>
-          <p>Les guildes et le jeu à plusieurs (groupes de 4 en donjon) arrivent avec la version multijoueur sur serveur en ligne. Ce qui est prévu :</p>
-          <ul style="font-size:18px;line-height:1.5"><li>Créer une guilde, choisir son nom et son blason, inviter des membres</li><li>Rangs : chef, officier, membre</li><li>Discussion de guilde et liste des membres connectés</li><li>Groupes de 4 joueurs dans les donjons, avec monstres plus résistants</li><li>Classement des guildes (donjons vaincus, temps record)</li></ul>`,
+        body: `<div class="say"><b>Maëlle :</b> « Les guildes ? Bientôt, mon brave ! En attendant, les héros de Valdorne se retrouvent déjà en ville : formez un groupe et descendez ensemble dans les donjons. »</div>
+          <p>${G.Net && G.Net.available ? 'Le jeu en ligne est ouvert : approchez-vous d\'un autre héros et appuyez sur ' + esc(G.Input.shortLabel('interact')) + ' pour l\'inviter, ou ouvrez la liste des joueurs (' + esc(G.Input.shortLabel('social')) + '). Le chef du groupe ouvre le donjon au Portail et tout le groupe y entre.' : 'Le jeu à plusieurs se joue sur le site du jeu (version en ligne).'} Les guildes arriveront ensuite :</p>
+          <ul style="font-size:18px;line-height:1.5"><li>Créer une guilde, choisir son nom et son blason, inviter des membres</li><li>Rangs : chef, officier, membre</li><li>Discussion de guilde et liste des membres connectés</li><li>Classement des guildes (donjons vaincus, temps record)</li></ul>`,
       };
     },
     menu() {
@@ -343,12 +355,14 @@
       const spells = sp.join('') === '12345' ? kbd('1') + ' à ' + kbd('5') : sp.map(kbd).join(' ');
       const rows = [[kbd(In.moveLabel()) + (arrows ? ' / flèches' : ''), 'Se déplacer'], [keys('attack'), 'Attaque de base vers le curseur (maintenir)'], [spells, 'Sorts (visés au curseur)'],
         [keys('potion'), 'Boire une potion'], [keys('interact'), 'Parler, ouvrir, utiliser'], [keys('inventory'), 'Inventaire'], [keys('menu'), 'Fermer / menu']];
-      if (G.opt('creator')) rows.push([keys('creator'), 'Mode créateur']);
+      const online = G.Net && G.Net.online, coop = !!Game.scene.coop;
+      if (G.opt('creator') && !online) rows.push([keys('creator'), 'Mode créateur']);
+      if (online) rows.push([keys('chat'), 'Discuter (« /g » : au groupe)'], [keys('social'), 'Joueurs en ligne et groupe']);
       return {
-        title: 'Pause', sub: inD ? 'Le jeu est en pause' : 'Havre-Gris',
+        title: coop ? 'Menu' : 'Pause', sub: coop ? 'Donjon de groupe : le jeu continue !' : inD ? 'Le jeu est en pause' : 'Havre-Gris',
         body: `<div class="cols" style="grid-template-columns:300px 1fr"><div class="list"><button class="main" data-menu="resume">Reprendre</button>
           <button data-menu="keys">Touches</button><button data-menu="options">Options</button>
-          ${G.opt('creator') ? '<button data-menu="creator" class="creatorbtn">Mode créateur</button>' : ''}
+          ${G.opt('creator') && !online ? '<button data-menu="creator" class="creatorbtn">Mode créateur</button>' : ''}
           <button data-menu="title">${inD ? 'Abandonner et revenir au titre' : 'Revenir à l\'écran titre'}</button>
           ${inD ? '<p class="muted" style="font-size:15px;margin:0">Abandonner : le butin trouvé dans ce donjon est perdu (sans les autres pénalités de mort).</p>' : '<p class="muted" style="font-size:15px;margin:0">La partie est sauvegardée automatiquement en ville.</p>'}</div>
           <div><div class="sectitle">Commandes</div><div class="cmds">${rows.map(([k, t]) => `<span>${k}</span><span>${t}</span>`).join('')}</div>
@@ -356,10 +370,10 @@
       };
     },
     keys() {
-      return { title: 'Touches', sub: 'Le jeu est en pause', body: `<div class="row" style="margin-bottom:8px"><button data-menu="back">← Retour au menu</button></div>${UI.keysBody()}` };
+      return { title: 'Touches', sub: UI.noPause() ? 'Le jeu continue' : 'Le jeu est en pause', body: `<div class="row" style="margin-bottom:8px"><button data-menu="back">← Retour au menu</button></div>${UI.keysBody()}` };
     },
     options() {
-      return { title: 'Options', sub: 'Le jeu est en pause', body: `<div class="row" style="margin-bottom:8px"><button data-menu="back">← Retour au menu</button></div>${UI.optionsBody()}` };
+      return { title: 'Options', sub: UI.noPause() ? 'Le jeu continue' : 'Le jeu est en pause', body: `<div class="row" style="margin-bottom:8px"><button data-menu="back">← Retour au menu</button></div>${UI.optionsBody()}` };
     },
   };
   // autres panneaux (mode créateur) : ajoutés par d'autres fichiers
@@ -376,7 +390,13 @@
     if (b && b.dataset.menu === 'back') { UI.openPanel('menu'); return; }
     const cell = e.target.closest('.cell[data-ref]');
     const dun = e.target.closest('[data-dun]');
-    if (dun) { const d = D.DUNGEONS[+dun.dataset.dun - 1]; UI.closePanel(); Game.enterDungeon(d); return; }
+    if (dun) {
+      const d = D.DUNGEONS[+dun.dataset.dun - 1];
+      UI.closePanel();
+      if (G.Net && G.Net.online && G.Net.party) G.Net.startGroup(d); // tout le groupe entre ensemble
+      else Game.enterDungeon(d);
+      return;
+    }
     if (panelId === 'inventory' && cell) {
       const ref = cell.dataset.ref;
       if (ref.startsWith('b:')) Game.equip(+ref.slice(2)); else Game.unequip(ref.slice(2));
@@ -485,12 +505,12 @@
   UI.confirm = function (title, text, okLabel, onOk, onCancel) {
     const sc = $('screen');
     const prevPaused = Game.paused;
-    Game.paused = true;
+    if (!UI.noPause()) Game.paused = true;
     sc.className = 'screen dim live'; sc.hidden = false;
     sc.innerHTML = `<div class="box sk"><h2 style="font-size:44px">${esc(title)}</h2><p style="font-size:19px;margin:0">${esc(text)}</p><div class="row"><button class="main" id="cok">${esc(okLabel)}</button><button id="cno">Annuler</button></div></div>`;
     sc.onclick = (e) => {
       const b = e.target.closest('button'); if (!b) return;
-      sc.hidden = true; Game.paused = prevPaused && panelId === 'menu';
+      sc.hidden = true; Game.paused = prevPaused && panelId === 'menu' && !UI.noPause();
       if (b.id === 'cok') onOk && onOk(); else onCancel && onCancel();
     };
   };

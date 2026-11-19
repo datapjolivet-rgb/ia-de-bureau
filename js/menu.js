@@ -4,7 +4,7 @@
   const D = G.D, S = G.S, R = G.R, Game = G.Game, UI = G.UI, Input = G.Input;
   const $ = (id) => document.getElementById(id);
   const esc = G.esc;
-  const VERSION = 'Version 3.1';
+  const VERSION = 'Version 5';
   let bg = null, tt = 0, sel = 0, items = [];
   UI.titleView = null;
 

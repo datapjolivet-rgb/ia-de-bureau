@@ -326,13 +326,15 @@
     return true;
   };
 
-  // Champ de distance (BFS) vers une case : les monstres contournent les murs et obstacles
-  W.flow = function (m, tx, ty) {
+  // Champ de distance (BFS) vers une case : les monstres contournent les murs et obstacles.
+  // F : où ranger le champ (par défaut la carte ; en groupe, un champ par autre héros)
+  W.flow = function (m, tx, ty, F) {
+    F = F || m;
     const N = m.w * m.h;
-    if (!m.dist) m.dist = new Int16Array(N);
-    const dist = m.dist; dist.fill(-1);
+    if (!F.dist) F.dist = new Int16Array(N);
+    const dist = F.dist; dist.fill(-1);
     const q = new Int32Array(N); let h = 0, t = 0;
-    m.flowT = [tx, ty];
+    F.flowT = [tx, ty];
     if (W.solidTile(m, tx, ty)) return;
     dist[ty * m.w + tx] = 0; q[t++] = ty * m.w + tx;
     while (h < t) {
@@ -347,15 +349,18 @@
       }
     }
     // Deuxième champ pour les grandes créatures : il évite les cases collées aux obstacles
-    if (!m.near) m.near = new Uint8Array(N);
-    const near = m.near;
-    for (let y = 0; y < m.h; y++) for (let x = 0; x < m.w; x++) {
-      let n = 0;
-      for (let oy = -1; oy <= 1 && !n; oy++) for (let ox = -1; ox <= 1; ox++) if (W.solidTile(m, x + ox, y + oy)) { n = 1; break; }
-      near[y * m.w + x] = n;
+    if (!m.near || F === m) {
+      if (!m.near) m.near = new Uint8Array(N);
+      const nr = m.near;
+      for (let y = 0; y < m.h; y++) for (let x = 0; x < m.w; x++) {
+        let n = 0;
+        for (let oy = -1; oy <= 1 && !n; oy++) for (let ox = -1; ox <= 1; ox++) if (W.solidTile(m, x + ox, y + oy)) { n = 1; break; }
+        nr[y * m.w + x] = n;
+      }
     }
-    if (!m.distBig) m.distBig = new Int16Array(N);
-    const db = m.distBig; db.fill(-1);
+    const near = m.near;
+    if (!F.distBig) F.distBig = new Int16Array(N);
+    const db = F.distBig; db.fill(-1);
     h = 0; t = 0;
     db[ty * m.w + tx] = 0; q[t++] = ty * m.w + tx;
     while (h < t) {
@@ -370,10 +375,11 @@
       }
     }
   };
-  W.flowDir = function (m, x, y, big) {
-    if (!m.dist) return null;
-    if (big && m.distBig) { const r = flowDirIn(m, m.distBig, x, y); if (r) return r; }
-    return flowDirIn(m, m.dist, x, y);
+  W.flowDir = function (m, x, y, big, F) {
+    F = F || m;
+    if (!F.dist) return null;
+    if (big && F.distBig) { const r = flowDirIn(m, F.distBig, x, y); if (r) return r; }
+    return flowDirIn(m, F.dist, x, y);
   };
   function flowDirIn(m, dist, x, y) {
     const tx = Math.floor(x / T), ty = Math.floor(y / T);
