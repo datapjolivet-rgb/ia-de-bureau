@@ -94,6 +94,7 @@
     sc.zones.forEach((z) => vis(z.x, z.y, z.r) && R.zone(g, z));
     sc.hazards.forEach((h) => R.hazard(g, h));
     sc.corpses.forEach((c) => vis(c.x, c.y, 40) && R.corpse(g, c));
+    if (sc.coop && G.Coop) G.Coop.drawCorpses(g, sc, vis); // héros tombés (en groupe)
     sc.portals.forEach((pt) => vis(pt.x, pt.y, 60) && R.portalExit(g, pt, t));
     sc.chests.forEach((c) => vis(c.x, c.y, 40) && R.chest(g, c));
     sc.drops.forEach((d) => vis(d.x, d.y, 30) && R.drop(g, d, t));
@@ -117,6 +118,7 @@
     list.sort((a, b) => a.y - b.y);
     list.forEach((u) => (sc.npcs.includes(u) ? R.npc(g, u) : R.unit(g, u)));
     if (G.Net) G.Net.drawOverlay(g, sc, vis); // noms des autres héros
+    if (sc.coop && G.Coop) G.Coop.drawCorpseInfo(g, sc, vis); // nom des héros tombés, réanimation en cours
     sc.units.forEach((u) => !u.dead && !u.isPlayer && !u.dormant && !u.hidden && vis(u.x, u.y, 40) && R.hpBar(g, u));
     sc.projs.forEach((p) => R.proj(g, p));
     drawParts(g, sc);

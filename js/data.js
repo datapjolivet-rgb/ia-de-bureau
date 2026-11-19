@@ -649,6 +649,9 @@
   D.POTION_PRICE = (lvl) => 24 + lvl * 7;
   D.MAX_POTIONS = 4;
   D.BAG_SIZE = 30;
+  D.REVIVE_TIME = 10; // secondes pour réanimer un allié tombé (en groupe)
+  D.REVIVE_RANGE = 80; // distance au corps
+  D.REVIVE_HP = 0.4; // vie retrouvée
   D.MAX_LEVEL = 50;
   D.xpNext = (lvl) => Math.round(90 * Math.pow(lvl, 1.65));
 })();

@@ -235,6 +235,7 @@
     if (m.a != null) u.aim = m.a;
     const f = m.f || 0;
     u.dead = !!(f & 1);
+    if (u.dead) { u.x = u.tx; u.y = u.ty; } // le corps reste exactement là où le héros est tombé
     u.stunT = f & 2 ? 1 : 0; u.sleep = !!(f & 4); u.stealth = !!(f & 8); u.shield = f & 16 ? 1 : 0; u.frozenT = f & 32 ? 1 : 0; u.invulnFx = !!(f & 64);
     u.buffs = u.stealth ? [{ id: 'furtif', t: 1 }] : [];
     if (m.sw != null && m.sw !== u.swingN) { u.swingN = m.sw; u.swingT = 1; u.swingDir = m.sd || 1; }
@@ -429,7 +430,7 @@
     el.innerHTML = `<div class="ptl"><span>Groupe ${P.members.length}/4</span><button class="live pfold" data-pfold="1" title="Cacher le cadre du groupe" aria-label="Cacher le cadre du groupe">−</button></div>` + rows.map((r) => {
       const C = D.CLASSES[r.m.cls] || { name: '?', color: '#888' };
       return `<div class="pm${r.me ? ' me' : ''}${r.dead ? ' dead' : ''}"><span class="pb" style="background:${C.color}">${esc(C.name[0])}</span>
-        <span class="pn">${r.lead ? '<span class="lead" title="Chef du groupe">★</span>' : ''}${esc(r.m.name)}<small> niv. ${r.m.lvl | 0}${r.dead ? ' · mort' : r.where ? ' · ' + r.where : ''}</small></span>
+        <span class="pn">${r.lead ? '<span class="lead" title="Chef du groupe">★</span>' : ''}${esc(r.m.name)}<small> niv. ${r.m.lvl | 0}${r.dead ? ' · à terre' : r.where ? ' · ' + r.where : ''}</small></span>
         ${r.hp != null ? `<span class="ph"><i style="width:${(r.hp * 100).toFixed(0)}%"></i></span>` : ''}</div>`;
     }).join('');
   }
@@ -504,15 +505,15 @@
     }
   };
 
-  // Noms au-dessus des autres héros, et héros tombés (fantômes) en donjon
+  // Noms au-dessus des autres héros (les héros tombés en donjon sont dessinés par coop.js : corps au sol)
   Net.drawOverlay = function (g, sc, vis) {
     for (const u of sc.units) {
-      if (!u.isAlly || !u.remote || !vis(u.x, u.y, 80)) continue;
-      if (u.dead) { g.save(); G.R.unit(g, Object.assign({}, u, { dead: false, stealth: true, shield: 0, stunT: 0, bubble: null })); g.restore(); }
+      if (!u.isAlly || !u.remote || u.dead || !vis(u.x, u.y, 80)) continue;
       const mate = Net.inParty(u.netId), lead = Net.party && Net.party.leader === u.netId;
-      S.text(g, (lead ? '★ ' : '') + u.name + (u.dead ? ' (mort)' : ''), u.x, u.y - 54, 15, mate ? '#2f5d8a' : '#4a3b2a', 'center', 'rgba(236,224,196,0.82)');
+      S.text(g, (lead ? '★ ' : '') + u.name, u.x, u.y - 54, 15, mate ? '#2f5d8a' : '#4a3b2a', 'center', 'rgba(236,224,196,0.82)');
     }
   };
+  Net.nameOf = (id) => (id === Net.myId ? (Game.char ? Game.char.name : 'Vous') : (Net.peers.get(id) || {}).name || 'Un allié');
 
   // ================= Mise en place de l'interface =================
   const baseInit = UI.init;

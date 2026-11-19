@@ -333,7 +333,7 @@
       return;
     }
     const isBoss = u.boss;
-    shadow(g, u.x, u.y + 2, u.r * (isBoss ? 1.1 : 1));
+    if (!u.noShadow) shadow(g, u.x, u.y + 2, u.r * (isBoss ? 1.1 : 1));
     let alpha = 1;
     if (u.stealth) alpha = 0.35;
     if (u.minion) alpha = 0.85;
@@ -381,6 +381,36 @@
     if (u.enraged) { g.globalAlpha = 0.35 + 0.15 * Math.sin(G.Game.time * 8); S.circle(g, u.x, u.y, u.r + 14, { ry: (u.r + 14) * 0.45, stroke: '#9b2c20', w: 3, single: true }); g.globalAlpha = 1; }
     if (u.bubble && u.bubble.t > 0) R.bubble(g, u.x, u.y - u.r * 2.6 - 6, u.bubble.text, Math.min(1, u.bubble.t * 2));
     if (u.invulnFx) { g.globalAlpha = 0.5; S.circle(g, u.x, u.y - 8, u.r + 12, { stroke: '#e2c043', w: 3, single: true }); g.globalAlpha = 1; }
+    g.globalAlpha = 1;
+  };
+
+  // Héros tombé en groupe : allongé au sol ; une petite âme flotte au-dessus tant qu'un allié peut le réanimer
+  R.heroCorpse = function (g, u) {
+    const t = G.Game.time, f = u.facing >= 0 ? 1 : -1;
+    S.begin(u.id, true);
+    g.globalAlpha = 0.24; g.fillStyle = '#2b2118';
+    g.beginPath(); g.ellipse(u.x, u.y + 1, 27, 8, 0, 0, G.TAU); g.fill();
+    g.globalAlpha = 1;
+    // le corps couché sur le côté, tête du côté où il regardait, arme posée le long du corps
+    const body = Object.assign({}, u, {
+      dead: false, walk: 0, swingT: 0, hitT: 0, stunT: 0, sleep: false, shield: 0, frozenT: 0, invulnFx: false,
+      shielded: null, enraged: false, bubble: null, stealth: false, elite: false, minion: false, hidden: false, noShadow: true, aim: Math.PI / 2,
+    });
+    g.save();
+    g.translate(u.x, u.y - 3); g.rotate(f * Math.PI / 2); g.translate(-u.x, -(u.y - 11));
+    R.unit(g, body);
+    g.restore();
+    // lavis pâle : le héros est inconscient
+    g.globalAlpha = 0.28; g.fillStyle = '#efe3c6';
+    g.beginPath(); g.ellipse(u.x, u.y - 4, 30, 12, 0, 0, G.TAU); g.fill();
+    g.globalAlpha = 1;
+    if (u.noSoul) return;
+    // l'âme : une flammèche bleutée qui monte et redescend doucement
+    const bob = Math.sin(t * 2.6 + (u.id % 7)) * 3, sx = u.x + f * 8, sy = u.y - 28 + bob;
+    g.globalAlpha = 0.22; g.fillStyle = '#9cc7e8';
+    g.beginPath(); g.arc(sx, sy, 13, 0, G.TAU); g.fill();
+    S.poly(g, [[sx, sy - 11 - Math.sin(t * 7) * 2], [sx + 5, sy - 1], [sx + 3.5, sy + 4], [sx - 3.5, sy + 4], [sx - 5, sy - 1]], { fill: '#d8ecfa', fillA: 0.9, stroke: '#6f9ac0', w: 1.2, amt: 0.6, alpha: 0.75 });
+    g.fillStyle = '#4f7aa0'; g.fillRect(sx - 2.2, sy - 1, 1.4, 1.8); g.fillRect(sx + 0.8, sy - 1, 1.4, 1.8);
     g.globalAlpha = 1;
   };
 

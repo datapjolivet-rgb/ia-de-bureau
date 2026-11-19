@@ -145,10 +145,12 @@
     if (!box) return;
     const show = Input.mode === 'touch' && Game.mode === 'play' && $('screen').hidden && !UI.currentPanel() && !!Game.player;
     if (box.hidden === show) box.hidden = !show;
-    if (!show) { if (Touch.joyId != null || Touch.jx || Touch.jy) { Touch.joyId = null; Touch.jx = Touch.jy = 0; $('tjoy').hidden = true; } if (Input.mode === 'touch') { G.Virt.mx = G.Virt.my = 0; G.Virt.held = {}; } return; }
-    G.Virt.mx = Touch.jx; G.Virt.my = Touch.jy;
-    autoAim();
+    // héros tombé en groupe : seuls les boutons du haut restent (menu, discussion…)
+    const down = !!(show && Game.player.dead);
+    if (box.classList.contains('dead') !== down) box.classList.toggle('dead', down);
+    if (!show || down) { if (Touch.joyId != null || Touch.jx || Touch.jy) { Touch.joyId = null; Touch.jx = Touch.jy = 0; $('tjoy').hidden = true; } if (Input.mode === 'touch') { G.Virt.mx = G.Virt.my = 0; G.Virt.held = {}; } if (!down) return; }
     const p = Game.player, ch = Game.char, sc = Game.scene;
+    if (!down) { G.Virt.mx = Touch.jx; G.Virt.my = Touch.jy; autoAim(); }
     // sorts : abréviation, coût, recharge
     document.querySelectorAll('#touch .sp').forEach((b) => {
       const s = +b.dataset.s, ab = Game.abilityDef(s), rank = ch.abil[s] || 0;

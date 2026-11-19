@@ -804,6 +804,7 @@
   Game.useAbility = function (slot) {
     const p = Game.player, ch = Game.char, sc = Game.scene;
     if (!p || p.dead || Game.mode !== 'play' || p.stunT > 0 || p.dash) return;
+    if (sc.coop && G.Coop) G.Coop.interrupt('attack'); // attaquer interrompt une réanimation
     const ab = Game.abilityDef(slot);
     const rank = slot === 0 ? 1 : ch.abil[slot] || 0;
     if (slot > 0 && !rank) { warn(ab.name + ' : à apprendre auprès du Maître des compétences.'); return; }
@@ -1859,7 +1860,10 @@
   // Le héros que suit la caméra (en groupe, un héros tombé regarde ses alliés)
   Game.focus = function () {
     const p = Game.player, sc = Game.scene;
-    if (p && p.dead && sc && sc.coop) return sc.units.find((u) => u.isAlly && u.remote && !u.dead) || p;
+    if (p && p.dead && sc && sc.coop) {
+      if (G.Coop && G.Coop.beingRevived()) return p; // un allié nous réanime : on regarde notre corps
+      return sc.units.find((u) => u.isAlly && u.remote && !u.dead) || p;
+    }
     return p;
   };
 
@@ -2086,6 +2090,7 @@
     const hostTxt = sc.coop && sc.coop.role === 'host' && sc.units.some((u) => u.isAlly && u.remote) ? ' Votre ordinateur fait vivre ce donjon : il se terminera aussi pour le reste du groupe.' : '';
     sc.portals.forEach((pt) => consider(pt.x, pt.y, pt.victory ? 'Retourner à Havre-Gris' : 'Quitter le donjon', () => (pt.victory ? Game.leaveDungeon(true) : G.UI.confirm('Quitter le donjon ?', 'Le butin déjà ramassé est conservé, mais le donjon sera réinitialisé (monstres et boss).' + hostTxt, 'Quitter', () => Game.leaveDungeon(false))), 70));
     if (G.Net) G.Net.interactions(sc, p, consider);
+    if (sc.coop && G.Coop) G.Coop.interactions(sc, p, consider); // réanimer un allié tombé
     return best;
   }
   Game.interact = function () {
@@ -2157,13 +2162,14 @@
 
   // Pénalités de mort : butin du donjon, 25 % de l'or, un objet équipé détruit
   function deathPenalty(sc, ch, p) {
-    const lost = { items: [], gold: 0, destroyed: null, dungeon: sc.kind === 'dungeon' ? sc.def.name : 'Havre-Gris' };
+    // « slots » garde la place des objets équipés : une réanimation en groupe les remet où ils étaient
+    const lost = { items: [], gold: 0, destroyed: null, dungeon: sc.kind === 'dungeon' ? sc.def.name : 'Havre-Gris', slots: new Map() };
     ch.bag = ch.bag.filter((it) => { if (it.run) { lost.items.push(it); return false; } return true; });
-    D.SLOTS.forEach((s) => { const it = ch.equip[s]; if (it && it.run) { lost.items.push(it); ch.equip[s] = null; } });
+    D.SLOTS.forEach((s) => { const it = ch.equip[s]; if (it && it.run) { lost.items.push(it); lost.slots.set(it, s); ch.equip[s] = null; } });
     lost.gold = Math.floor(ch.gold * 0.25);
     ch.gold -= lost.gold;
     const slots = D.SLOTS.filter((s) => ch.equip[s]);
-    if (slots.length) { const s = G.pick(slots); lost.destroyed = ch.equip[s]; ch.equip[s] = null; }
+    if (slots.length) { const s = G.pick(slots); lost.destroyed = ch.equip[s]; lost.slots.set(lost.destroyed, s); ch.equip[s] = null; }
     if (sc.usedBound) ch.boundBoss = null;
     ch.deaths++;
     Game.refreshStats();
@@ -2171,6 +2177,31 @@
     G.Save.save(true, true);
     return lost;
   }
+
+  // Réanimation en groupe : le héros se relève là où il est tombé et récupère tout ce que la mort lui avait pris
+  Game.revivePlayer = function (lost) {
+    const p = Game.player, ch = Game.char;
+    if (!p || !p.dead || !ch) return false;
+    if (lost) {
+      const back = (it) => { const s = lost.slots && lost.slots.get(it); if (s && !ch.equip[s]) ch.equip[s] = it; else ch.bag.push(it); };
+      if (lost.destroyed) back(lost.destroyed);
+      lost.items.forEach(back);
+      ch.gold += lost.gold || 0;
+      ch.deaths = Math.max(0, (ch.deaths || 0) - 1);
+      lost.items = []; lost.gold = 0; lost.destroyed = null;
+    }
+    p.dead = false;
+    p.hp = 1;
+    Game.refreshStats();
+    p.hp = Math.max(1, Math.round(p.maxHp * D.REVIVE_HP));
+    p.invulnT = 2.5; p.stunT = 0; p.sleep = false; p.frozenT = 0; p.slowT = 0; p.slowAmt = 0; p.drowse = 0;
+    p.dots = []; p.hots = []; p.dash = null; p.ivx = p.ivy = 0; p.combatT = 0;
+    ring(p.x, p.y, 70, '#e2c043');
+    parts(p.x, p.y - 12, 20, '#e2c043', 'spark', 140);
+    G.Save.save(true, true);
+    G.UI.refreshPanel();
+    return true;
+  };
 
   // ================= Inventaire =================
   Game.equip = function (idx) {

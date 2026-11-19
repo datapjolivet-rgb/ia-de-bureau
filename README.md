@@ -48,7 +48,7 @@ Le jeu en ligne fonctionne sur https://valdorne.chroniques-valdorne.workers.dev,
 - **Groupes de 4** : approchez-vous d'un héros et appuyez sur E pour l'inviter, ou ouvrez la liste des joueurs (touche P) pour inviter, exclure, nommer un nouveau chef, quitter le groupe ou ignorer un joueur. Le cadre du groupe affiche les membres, leur niveau et leur vie ; son bouton « − » le replie (le choix est gardé, et se règle aussi dans les Options).
 - **Donjons en groupe** : le chef ouvre le donjon au Portail et tout le groupe y entre (tous les membres doivent être en ville). Les monstres ont +70 % de vie par joueur en plus. Quand un héros entre dans la salle du boss, la porte se ferme et le reste du groupe le rejoint.
 - **Butin personnel** : chacun reçoit son or, ses objets (pour sa classe), son expérience et ses coffres. Un donjon que votre héros n'a pas encore débloqué ne lui donne pas de fragment du Sceau.
-- **Mort en groupe** : les pénalités habituelles s'appliquent, puis le héros regarde son groupe combattre ; il rentre en ville quand il veut. Si tout le groupe tombe, tout le monde rentre.
+- **Mort en groupe** : le héros tombe et son **corps reste au sol** (une petite âme bleue flotte au-dessus). Un allié vivant peut le **réanimer** : il s'approche du corps, appuie sur la touche d'action (E, A à la manette, « Action » sur téléphone) et reste **10 secondes** près du corps sans bouger ni attaquer. Les coups reçus n'interrompent pas la réanimation ; bouger, attaquer, lancer un sort, être étourdi ou s'éloigner, si (appuyer de nouveau sur l'action l'arrête aussi). Un anneau doré se remplit autour du corps et le héros tombé voit qui le réanime. Réanimé, il se relève sur place avec 40 % de sa vie et **récupère tout ce que la mort lui avait pris** (or, butin du donjon, objet détruit). En attendant, il regarde son groupe combattre ; il peut aussi rentrer en ville quand il veut, et garde alors les pénalités habituelles. Si tout le groupe tombe, tout le monde rentre. Un héros Hardcore, lui, ne se relève pas.
 - **Pas de pause** dans un donjon de groupe : le menu s'ouvre, mais le combat continue.
 - **Mode créateur désactivé en ligne**. Un héros qui l'a utilisé joue hors ligne.
 
@@ -149,7 +149,7 @@ Puis ouvrir http://localhost:8000 dans un navigateur. Ainsi, le jeu est en solo 
 | `js/pad.js` | Manette : déplacement, visée, sorts, navigation dans les menus |
 | `js/touch.js` | Écran tactile : joystick, boutons d'action, visée automatique |
 | `js/net.js` | Jeu en ligne : connexion, autres héros en ville, discussion, groupes, liste des joueurs |
-| `js/coop.js` | Donjons en groupe : état des monstres envoyé par le chef, attaques partagées, mort en groupe |
+| `js/coop.js` | Donjons en groupe : état des monstres envoyé par le chef, attaques partagées, mort en groupe, corps et réanimation |
 | `js/main.js` | Démarrage, sauvegarde, clavier et souris |
 | `server/` | Serveur Cloudflare (Worker + Durable Object) : ville partagée, discussion, groupes, relais des donjons |
 

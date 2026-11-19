@@ -37,6 +37,7 @@
       pup: new Map(), sent: new Map(), rmin: new Map(), need: new Set(),
       out: [], outHost: [], snapT: 0, fullT: 0, needT: 0, revealT: 0, checkT: 0, wipeT: 0,
       env: { wind: null, storm: null, eclipse: null, invert: null }, gateSent: null, ghost: null, ended: false,
+      rez: null, rezzing: new Map(), ghostTxt: '', // réanimation : la nôtre, et celles en cours dans le groupe
     };
     hideGhost();
     if (st.role === 'member') G.Net && G.Net.sys('Donjon de groupe : l\'ordinateur de votre chef fait vivre les monstres. Chacun ramasse son propre butin.');
@@ -113,10 +114,11 @@
   };
   function dropOwner(id) {
     for (const [k, u] of st.rmin) if (u.owner === id) { u.dead = true; st.rmin.delete(k); }
+    for (const [k, r] of st.rezzing) if (r.by === id || k === id) st.rezzing.delete(k);
     st.sc.units = st.sc.units.filter((u) => !(u.remote && (u.netId === id || u.owner === id)));
   }
 
-  // ================= Mort en groupe : le héros devient spectateur =================
+  // ================= Mort en groupe : le héros tombe au sol, un allié peut le réanimer =================
   Coop.onLocalDeath = function (lost, hardcore) {
     if (!st) return;
     const sc = st.sc;
@@ -127,6 +129,7 @@
     }
     st.ghost = { lost };
     sc.deathLost = lost;
+    st.rezzing.delete(myId()); // une ancienne réanimation (déjà finie) ne compte plus
     G.UI.bossBar(null);
     showGhost();
   };
@@ -134,7 +137,9 @@
     let el = $('ghost');
     if (!el) { $('ui').insertAdjacentHTML('beforeend', '<div id="ghost" class="sk live" hidden></div>'); el = $('ghost'); }
     el.hidden = false;
-    el.innerHTML = `<b>Vous êtes tombé.</b><span>Les pénalités de mort sont appliquées. Vous regardez votre groupe se battre.</span><button class="main" id="ghostgo">Rentrer à Havre-Gris</button>`;
+    el.innerHTML = `<b>Vous êtes tombé.</b><span>Un allié peut vous réanimer en restant ${D.REVIVE_TIME} secondes près de votre corps : vous retrouverez alors tout ce que la mort vous a pris.</span>`
+      + `<span id="ghostrez" hidden></span><small>Si vous rentrez à Havre-Gris, les pénalités de mort restent appliquées.</small><button class="main" id="ghostgo">Rentrer à Havre-Gris</button>`;
+    st.ghostTxt = '';
     $('ghostgo').onclick = () => {
       if (!st) return;
       if (st.role === 'host' && othersInDungeon()) {
@@ -372,6 +377,20 @@
         Game.hitFx(src, u, { stun: Math.min(5, +e.stun || 0), sleep: !!e.sl, slow: Math.min(0.9, +e.slow || 0), weaken: Math.min(0.9, +e.wk || 0), knock: Math.min(300, +e.kn || 0), kx: e.kx, ky: e.ky });
         break;
       }
+      // ----- réanimation d'un héros tombé (de tous vers tous) -----
+      case 'rez': {
+        const id = typeof e.id === 'string' ? e.id.slice(0, 40) : '';
+        if (!id || !from) break;
+        if (e.s === 1) {
+          st.rezzing.set(id, { by: from, t0: Game.time });
+          if (id === myId() && st.ghost) UI.toast(G.Net.nameOf(from) + ' commence à vous réanimer !', '#2f5d8a', 2.5);
+        } else {
+          const r = st.rezzing.get(id);
+          if (r && r.by === from) st.rezzing.delete(id);
+          if (e.s === 2 && id === myId()) revived(from);
+        }
+        break;
+      }
       case 'need': if (host && Array.isArray(e.ids)) { const defs = e.ids.slice(0, 200).map((id) => st.sent.get(id)).filter(Boolean).map(defOf); for (let i = 0; i < defs.length; i += 80) queue({ k: 'def', u: defs.slice(i, i + 80) }); } break;
     }
   }
@@ -498,13 +517,148 @@
         const h = u.dashHit;
         if (!h || h.done || u.dead) continue;
         if (Game.time > h.until) { u.dashHit = null; continue; }
-        if (Math.hypot(u.x - p.x, u.y - p.y) < h.w / 2 + p.r) { h.done = true; Game.dealDamage(u, p, h.dmg); }
+        if (Math.hypot(u.x - p.x, u.y - p.y) < h.w / 2 + p.r) { h.done = true; Game.dealDamage(u, p, h.dmg); if (!st) return; }
       }
       st.needT += dt;
       if (st.needT > 0.5 && st.need.size) { st.needT = 0; queueHost({ k: 'need', ids: [...st.need].slice(0, 200) }); }
     }
+    if (!st) return;
+    updateRez(dt);
+    if (!st) return;
     // la carte se dévoile aussi autour des alliés
     st.revealT += dt;
     if (st.revealT > 0.25) { st.revealT = 0; for (const u of sc.units) if (u.isAlly && u.remote && !u.dead) W.reveal(sc.map, u.x, u.y, 7); }
+  };
+
+  // ================= Réanimation =================
+  // Un héros tombé reste au sol. Un allié vivant s'approche de son corps, appuie sur « interagir » et reste
+  // D.REVIVE_TIME secondes sans bouger ni attaquer (les coups reçus n'interrompent pas ; être étourdi, si).
+  // L'ordinateur du héros tombé le relève lui-même quand il reçoit le message de réussite.
+  const nameOf = (id) => (G.Net ? G.Net.nameOf(id) : 'Un allié');
+  function moving() {
+    const In = G.Input, v = G.Virt || {};
+    return In.held('up') || In.held('down') || In.held('left') || In.held('right') || Math.hypot(v.mx || 0, v.my || 0) > 0.3;
+  }
+  function startRez(u) {
+    const p = Game.player;
+    if (!st || st.rez || !p || p.dead || !u || !u.dead) return;
+    st.rez = { id: u.netId, name: u.name, t: 0 };
+    st.rezzing.set(u.netId, { by: myId(), t0: Game.time });
+    queue({ k: 'rez', id: u.netId, s: 1 });
+    UI.toast('Vous réanimez ' + u.name + ' : restez près de son corps sans bouger ni attaquer pendant ' + D.REVIVE_TIME + ' secondes.', '#2f5d8a', 3);
+  }
+  function cancelRez(msg) {
+    if (!st || !st.rez) return;
+    const id = st.rez.id, r = st.rezzing.get(id);
+    st.rez = null;
+    if (r && r.by === myId()) st.rezzing.delete(id);
+    queue({ k: 'rez', id, s: 0 });
+    if (msg) UI.toast(msg, '#9b2c20', 2.5);
+  }
+  Coop.interrupt = function (why) {
+    if (st && st.rez) cancelRez(why === 'attack' ? 'Réanimation interrompue : vous avez attaqué.' : 'Réanimation interrompue.');
+  };
+  // un allié est en train de nous réanimer ?
+  function rezOf(id) {
+    const r = st && st.rezzing.get(id);
+    return r && Game.time - r.t0 < D.REVIVE_TIME + 2 ? r : null;
+  }
+  Coop.beingRevived = () => !!(st && st.ghost && rezOf(myId()));
+  // touche « interagir » près d'un corps
+  Coop.interactions = function (sc, p, consider) {
+    if (!st || st.sc !== sc || !p || p.dead) return;
+    if (st.rez) { consider(p.x, p.y, 'Arrêter de réanimer (' + Math.max(1, Math.ceil(D.REVIVE_TIME - st.rez.t)) + ' s)', () => cancelRez('Réanimation arrêtée.'), 1); return; }
+    for (const u of sc.units) {
+      if (!u.isAlly || !u.remote || !u.dead || Game.time - (u.rezT || -99) < 2) continue;
+      const r = rezOf(u.netId);
+      if (r && r.by !== myId()) consider(u.x, u.y, nameOf(r.by) + ' réanime déjà ' + u.name, () => UI.toast(nameOf(r.by) + ' réanime déjà ' + u.name + '.', '#2f5d8a', 2), D.REVIVE_RANGE);
+      else consider(u.x, u.y, 'Réanimer ' + u.name + ' (' + D.REVIVE_TIME + ' s)', () => startRez(u), D.REVIVE_RANGE);
+    }
+  };
+  function updateRez(dt) {
+    const p = Game.player, r = st.rez;
+    if (r) {
+      const u = G.Net && G.Net.avatar(r.id);
+      if (!u) cancelRez(r.name + ' n\'est plus dans le donjon.');
+      else if (!u.dead) cancelRez(null); // déjà relevé (par un autre allié)
+      else if (!p || p.dead) cancelRez(null);
+      else if (p.stunT > 0) cancelRez('Réanimation interrompue : vous êtes étourdi.');
+      else if (moving()) cancelRez('Réanimation interrompue : il faut rester immobile.');
+      else if (Math.hypot(u.x - p.x, u.y - p.y) > D.REVIVE_RANGE + 24) cancelRez('Réanimation interrompue : vous êtes trop loin du corps.');
+      else {
+        r.t += dt;
+        if (r.t >= D.REVIVE_TIME) {
+          st.rez = null; st.rezzing.delete(r.id);
+          u.rezT = Game.time;
+          queue({ k: 'rez', id: r.id, s: 2 });
+          G.Net && G.Net.flush();
+          Game.ring(u.x, u.y, 60, '#e2c043');
+          Game.parts(u.x, u.y - 10, 16, '#e2c043', 'spark', 120);
+          UI.toast('Vous avez réanimé ' + r.name + ' !', '#4f8a2a', 3);
+        }
+      }
+    }
+    // héros tombé : qui nous réanime, et dans combien de temps
+    if (st.ghost) {
+      const q = rezOf(myId());
+      const txt = q ? nameOf(q.by) + ' vous réanime… ' + Math.max(1, Math.ceil(D.REVIVE_TIME - (Game.time - q.t0))) + ' s' : '';
+      if (txt !== st.ghostTxt) { st.ghostTxt = txt; const el = $('ghostrez'); if (el) { el.textContent = txt; el.hidden = !txt; } }
+    }
+    for (const [id, q] of st.rezzing) if (Game.time - q.t0 > D.REVIVE_TIME + 6) st.rezzing.delete(id);
+  }
+  // message de réussite reçu : notre ordinateur relève notre héros
+  function revived(from) {
+    const p = Game.player, sc = st.sc;
+    if (!p || !p.dead || !st.ghost || !(G.Net && G.Net.avatar(from))) return;
+    const lost = st.ghost.lost;
+    st.ghost = null; sc.deathLost = null; st.ghostTxt = '';
+    st.rezzing.delete(myId());
+    hideGhost();
+    if (!Game.revivePlayer(lost)) return;
+    UI.toast(nameOf(from) + ' vous a réanimé ! Vous retrouvez tout ce que la mort vous avait pris.', '#4f8a2a', 4);
+  }
+
+  // ----- dessin des corps -----
+  function corpses(sc) {
+    const list = [], p = Game.player;
+    if (p && p.dead && st.ghost) list.push(p);
+    for (const u of sc.units) if (u.isAlly && u.remote && u.dead) list.push(u);
+    return list;
+  }
+  const corpseId = (u) => (u.isPlayer ? myId() : u.netId);
+  // progression d'une réanimation (0 à 1), vue par ce joueur
+  function rezProgress(u) {
+    const id = corpseId(u);
+    if (st.rez && st.rez.id === id) return st.rez.t / D.REVIVE_TIME;
+    const r = rezOf(id);
+    return r ? Math.min(1, (Game.time - r.t0) / D.REVIVE_TIME) : -1;
+  }
+  // au sol (avant les héros debout) : le corps et, pendant une réanimation, un anneau doré qui se remplit
+  Coop.drawCorpses = function (g, sc, vis) {
+    if (!st || st.sc !== sc) return;
+    for (const u of corpses(sc)) {
+      if (!vis(u.x, u.y, 60)) continue;
+      G.R.heroCorpse(g, u);
+      const k = rezProgress(u);
+      if (k < 0) continue;
+      g.save();
+      g.lineCap = 'round';
+      g.globalAlpha = 0.3; g.strokeStyle = '#2b2118'; g.lineWidth = 4;
+      g.beginPath(); g.ellipse(u.x, u.y - 2, 36, 14, 0, 0, G.TAU); g.stroke();
+      g.globalAlpha = 0.95; g.strokeStyle = '#e2c043'; g.lineWidth = 5;
+      g.beginPath(); g.ellipse(u.x, u.y - 2, 36, 14, 0, -Math.PI / 2, -Math.PI / 2 + G.TAU * Math.max(0.01, k)); g.stroke();
+      g.restore();
+    }
+  };
+  // par-dessus : le nom sous le corps (loin du nom des héros debout), le temps restant au-dessus
+  Coop.drawCorpseInfo = function (g, sc, vis) {
+    if (!st || st.sc !== sc) return;
+    const S = G.S;
+    for (const u of corpses(sc)) {
+      if (!vis(u.x, u.y, 90)) continue;
+      S.text(g, (u.isPlayer ? 'Vous' : u.name) + ' — à terre', u.x, u.y + 25, 15, '#7a2734', 'center', 'rgba(236,224,196,0.85)');
+      const k = rezProgress(u);
+      if (k >= 0) S.text(g, 'Réanimation… ' + Math.max(1, Math.ceil(D.REVIVE_TIME * (1 - k))) + ' s', u.x, u.y - 78, 18, '#8a6a10', 'center', 'rgba(236,224,196,0.9)');
+    }
   };
 })();
