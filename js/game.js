@@ -260,12 +260,15 @@
     return u;
   }
 
+  // attaques qu'un serviteur n'utilise pas : invocations, et effets qui toucheraient aussi son maître
+  const MINION_BAN = ['summon', 'shieldAdds', 'dive', 'explode', 'invert', 'eclipse', 'storm', 'gravity', 'gust'];
   function atkList(u) {
     const d = u.def;
-    if (d.phases) {
-      if (u.minion) return d.phases[0].atks.filter((a) => a.t !== 'summon' && a.t !== 'shieldAdds' && a.t !== 'dive');
-      return d.phases[u.phase].atks;
+    if (u.minion) {
+      if (!u.atkCache) u.atkCache = (d.phases ? d.phases[0].atks : d.atks).filter((a) => !MINION_BAN.includes(a.t));
+      return u.atkCache;
     }
+    if (d.phases) return d.phases[u.phase].atks;
     return d.atks;
   }
 
@@ -501,6 +504,7 @@
     ring(u.x, u.y, u.r * 2.5, '#2b2118');
     cancelHazards(u);
     if (u.isPlayer) { Game.onPlayerDeath(); return; }
+    if (u.soul) { soulGone(u, 'L\'âme de ' + u.def.name + ' est vaincue. Elle reviendra au prochain donjon.'); return; }
     if (u.minion) { if (u.bound) text(u.x, u.y - 40, 'Le serviteur retourne à la poussière', '#3f7d2a', 16); return; }
     decal(u.x, u.y + 2, u.r * 0.9, u.look === 'wisp' ? '#5a8a7a' : '#2b2118');
     // chez un membre du groupe, les flaques, explosions, éclats et divisions arrivent de l'ordinateur du chef
@@ -625,6 +629,95 @@
     }
   }
 
+  // ================= Grimoire des âmes (nécromancien) =================
+  // Chaque boss vaincu par un nécromancien rejoint son grimoire : il peut l'invoquer une fois par donjon,
+  // jamais en ville ni dans la salle d'un boss. Tant que l'âme est là, tout son mana est bloqué. Elle est bien plus faible que le vrai boss.
+  const SOUL = (Game.SOUL = { hp: 0.15, dmg: 0.25 });
+  Game.souls = function (ch) {
+    ch = ch || Game.char;
+    if (!ch || ch.cls !== 'necromancien') return [];
+    return D.DUNGEONS.map((d) => d.boss).filter((t) => t && D.MONSTERS[t] && (ch.kills[t] || 0) > 0);
+  };
+  Game.soulOut = function () {
+    const sc = Game.scene;
+    return (sc && sc.units.find((u) => u.soul && !u.dead && !u.netCtl)) || null;
+  };
+  function bossRoomOf(sc) {
+    if (!sc || !sc.map || !sc.map.rooms) return null;
+    if (sc.bossRoomRect === undefined) sc.bossRoomRect = sc.map.rooms.find((r) => r.spec && r.spec.includes('boss')) || null;
+    return sc.bossRoomRect;
+  }
+  function inBossRoom(sc, u) {
+    const r = bossRoomOf(sc);
+    return !!(r && u.x > r.x * T && u.x < (r.x + r.w) * T && u.y > r.y * T && u.y < (r.y + r.h) * T);
+  }
+  Game.inBossRoom = (u) => inBossRoom(Game.scene, u || Game.player);
+  // null si l'invocation est possible, sinon la raison
+  Game.soulCheck = function (type) {
+    const sc = Game.scene, p = Game.player, ch = Game.char;
+    if (!ch || ch.cls !== 'necromancien') return 'Seul le nécromancien possède un grimoire des âmes.';
+    if (!sc || sc.kind !== 'dungeon') return 'Les âmes ne répondent pas en ville : invoquez-les dans un donjon.';
+    if (!p || p.dead || Game.mode !== 'play') return 'Impossible maintenant.';
+    if (Game.soulOut()) return 'Une âme vous accompagne déjà.';
+    if (sc.soulUsed) return 'Vous avez déjà invoqué une âme dans ce donjon : elle reviendra au prochain.';
+    if (inBossRoom(sc, p) || (sc.boss && !sc.boss.dormant && !sc.boss.dead)) return 'Les âmes n\'entrent pas dans l\'antre d\'un boss.';
+    if (type && !Game.souls().includes(type)) return 'Vous n\'avez pas encore vaincu ce boss.';
+    return null;
+  };
+  Game.soulStats = function (type) {
+    const d = D.MONSTERS[type];
+    return { hp: Math.max(1, Math.round(d.hp * SOUL.hp)), dmg: Math.round(d.dmg * SOUL.dmg) };
+  };
+  function placeNear(u, p) {
+    const m = Game.scene.map;
+    for (let k = 0; k < 40; k++) {
+      const a = Math.random() * G.TAU, d = 50 + k * 3, x = p.x + Math.cos(a) * d, y = p.y + Math.sin(a) * d;
+      if (!W.collides(m, x, y, u.r) && W.los(m, p.x, p.y, x, y)) { u.x = x; u.y = y; return; }
+    }
+    u.x = p.x; u.y = p.y;
+  }
+  Game.summonSoul = function (type) {
+    const why = Game.soulCheck(type);
+    if (why) { warn(why); return false; }
+    const sc = Game.scene, p = Game.player, d = D.MONSTERS[type];
+    const u = makeMonster(type, p.x, p.y, sc.def.lvl + 2, false);
+    const st = Game.soulStats(type);
+    Object.assign(u, { faction: 'p', minion: true, soul: true, bound: false, aggro: true, boss: false, dormant: false, bossRoom: null, life: 1e9,
+      maxHp: st.hp, hp: st.hp, dmg: d.dmg * SOUL.dmg, name: d.name + ' (âme)', explosive: false, vamp: 0, affixText: null, shielded: null, gcd: 0.8 });
+    placeNear(u, p);
+    sc.units.push(u);
+    sc.soulUsed = true;
+    p.res = 0; p.manaLock = true;
+    ring(u.x, u.y, 90, '#5bd04a', 0.7); parts(u.x, u.y - 10, 24, '#5bd04a', 'spark', 180); decal(u.x, u.y + 4, 22, '#3f7d2a');
+    text(u.x, u.y - u.r * 2 - 20, 'L\'âme de ' + d.name + ' se lève !', '#3f7d2a', 22, 2);
+    G.UI.toast('Âme invoquée : ' + d.name + '. Votre mana est bloqué tant qu\'elle reste.', '#3f7d2a', 3.5);
+    Game.shake(6);
+    return true;
+  };
+  function soulGone(u, msg) {
+    u.dead = true;
+    parts(u.x, u.y - 10, 18, '#5bd04a', 'puff', 120);
+    ring(u.x, u.y, 70, '#3f7d2a', 0.5);
+    const p = Game.player;
+    if (p && !Game.soulOut()) p.manaLock = false;
+    if (msg) G.UI.toast(msg, '#3f7d2a', 3.5);
+  }
+  // renvoi volontaire (le mana revient ; l'âme reviendra au prochain donjon)
+  Game.dismissSoul = function () {
+    const u = Game.soulOut();
+    if (u) soulGone(u, 'L\'âme de ' + u.def.name + ' retourne au grimoire. Elle reviendra au prochain donjon.');
+  };
+  function banishSoul() {
+    const u = Game.soulOut();
+    if (u) soulGone(u, 'Les âmes n\'entrent pas dans l\'antre d\'un boss : ' + u.def.name + ' retourne au grimoire.');
+  }
+  // chaque image : l'âme ne suit pas son maître dans la salle du boss
+  function updateSoul(sc) {
+    const u = Game.soulOut();
+    if (!u) { if (Game.player && Game.player.manaLock) Game.player.manaLock = false; return; }
+    if (inBossRoom(sc, Game.player) || inBossRoom(sc, u)) banishSoul();
+  }
+
   // ================= Expérience =================
   Game.addXp = function (n) {
     const ch = Game.char, p = Game.player;
@@ -661,6 +754,7 @@
     if ((p.cds[slot] || 0) > 0) return;
     const free = cheat('nocd');
     const cost = free ? 0 : ab.cost || 0;
+    if (p.manaLock && cost > 0) { warn('Votre mana nourrit l\'âme invoquée : renvoyez-la (' + G.Input.label('summon') + ') pour le retrouver.'); return; }
     if (p.res < cost) { warn('Pas assez de ' + D.RES[D.CLASSES[ch.cls].res].name.toLowerCase() + '.'); return; }
     const c = { rk: 1 + 0.25 * (rank - 1), tx: Game.mouse.wx, ty: Game.mouse.wy };
     for (const fx of ab.fx) {
@@ -855,7 +949,7 @@
       ring(k.x, k.y, 60, '#5bd04a', 0.5);
       parts(k.x, k.y, 14, '#5bd04a', 'spark', 120);
       if (k.boss) { Game.char.boundBoss = k.type; G.UI.toast(m.name + ' vous servira pendant votre prochain donjon !', '#3f7d2a', 5); }
-      const mins = sc.units.filter((u) => u.minion && !u.bound && !u.dead);
+      const mins = sc.units.filter((u) => u.minion && !u.bound && !u.soul && !u.dead);
       if (mins.length > 4) { mins[0].dead = true; parts(mins[0].x, mins[0].y, 8, '#2b2118'); }
     } else {
       text(k.x, k.y - 40, 'Échec ! (' + Math.round(chance * 100) + ' %)', '#9b2c20', 22);
@@ -1274,7 +1368,11 @@
     const water = !u.def.flying && W.waterAt(sc.map, u.x, u.y);
     const spd = u.speed * (u.speedMul || 1) * (1 - (u.slowAmt || 0)) * (water ? 0.6 : 1);
     if (!tgt) {
-      if (u.minion) { const p = Game.player; if (G.dist(u, p) > 90) moveToward(u, p.x, p.y, spd * 1.2, dt); }
+      if (u.minion) {
+        const p = Game.player;
+        if ((u.soul || u.bound) && G.dist(u, p) > 480 && !p.dead) placeNear(u, p);
+        else if (G.dist(u, p) > 90) moveToward(u, p.x, p.y, spd * 1.2, dt);
+      }
       u.vx = (u.x - px) / dt; u.vy = (u.y - py) / dt;
       return;
     }
@@ -1360,6 +1458,7 @@
 
   function activateBoss(b, who) {
     const sc = Game.scene;
+    banishSoul();
     b.dormant = false; b.aggro = true;
     sc.map.gateLocked = true;
     if (sc.coop && G.Coop) G.Coop.bossStart(b, who || Game.player);
@@ -1389,9 +1488,12 @@
     p.hots = p.hots.filter((h) => h.t > 0);
     const C = D.CLASSES[p.cls], RS = D.RES[C.res];
     p.combatT += dt;
-    if (RS.regen) gainRes(p, RS.regen * dt);
-    if (RS.regenPct) gainRes(p, p.resMax * RS.regenPct * dt);
-    if (RS.decay && p.combatT > 4) gainRes(p, -RS.decay * dt);
+    if (p.manaLock) p.res = 0; // l'âme invoquée se nourrit de tout le mana
+    else {
+      if (RS.regen) gainRes(p, RS.regen * dt);
+      if (RS.regenPct) gainRes(p, p.resMax * RS.regenPct * dt);
+      if (RS.decay && p.combatT > 4) gainRes(p, -RS.decay * dt);
+    }
     if (sc.kind === 'town') healUnit(p, p.maxHp * 0.2 * dt, true);
     else if (sc.kind === 'tuto') { if (p.combatT > 3 && !(G.Tuto && G.Tuto.noRegen())) healUnit(p, p.maxHp * 0.04 * dt, true); }
     else if (p.combatT > 8) healUnit(p, p.maxHp * 0.012 * dt, true);
@@ -1619,6 +1721,7 @@
       if (m.gateLocked !== m._lastGate) { m._lastGate = m.gateLocked; m.flowDirty = true; }
       if (!m.flowT || m.flowT[0] !== tx || m.flowT[1] !== ty || m.flowDirty) { W.flow(m, tx, ty); m.flowDirty = false; }
       W.reveal(m, p.x, p.y, 7);
+      if (p.manaLock || sc.soulUsed) updateSoul(sc);
     } else if (sc.kind === 'tuto') {
       const tx = Math.floor(p.x / T), ty = Math.floor(p.y / T);
       if (!m.flowT || m.flowT[0] !== tx || m.flowT[1] !== ty) W.flow(m, tx, ty);

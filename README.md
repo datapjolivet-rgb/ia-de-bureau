@@ -15,6 +15,7 @@ Le Roi Cendré a brisé le Sceau des Quinze. Ses quinze lieutenants gardent chac
 - **Mode créateur** (à activer dans les Options, puis touche C en jeu ou bouton dans la pause) : tous les objets du jeu (60 modèles, toutes raretés, niveau 1 à 60, forge +0 à +10, nom légendaire au choix), niveau, or, sorts et talents au maximum, invincibilité, dégâts ×10, sorts sans recharge, les 15 donjons ouverts, téléportation au boss, monstres et boss à volonté. Les héros qui s'en servent portent le badge « Créateur ».
 - **Tutoriel guidé** avec la sergente Brenna, dans le camp des recrues devant la porte de Havre-Gris (il peut être passé).
 - **Havre-Gris** : forge (amélioration jusqu'à +10), boutique, académie (sorts et talents), garnison (quêtes), portail des donjons, mannequins d'entraînement, habitants et animaux.
+- **Grimoire des âmes du nécromancien** (touche F) : chaque boss qu'il a vaincu y laisse son âme, qu'il peut invoquer une fois par donjon, jamais en ville ni dans la salle d'un boss. Tant que l'âme est là, tout son mana est bloqué (l'attaque de base reste possible). L'âme n'a que 15 % de la vie et 25 % des dégâts du vrai boss et n'utilise pas les pouvoirs qui gêneraient le joueur ; si elle tombe ou repart, elle reviendra au prochain donjon. L'ancien « serviteur lié » (cadavre de boss relevé) existe toujours.
 - **Objets reconnaissables** : chacun des 60 modèles a sa propre icône, aussi visible au sol. La matière change avec le niveau de l'objet (fer, acier, acier noirci, mithril, orichalque), la pierre sertie indique le bonus principal (rouge : puissance, vert : vitalité, bleu : armure, jaune : critique, turquoise : hâte) et l'éclat la rareté.
 - **Les 15 donjons au plan fixe**, chacun avec son boss à plusieurs phases :
   1. Cryptes de Cendrefosse — Varok le Fossoyeur
@@ -80,6 +81,7 @@ Touches par défaut (modifiables dans « Touches », sur l'écran titre ou dans 
 | Clic gauche (maintenu) | Attaque de base vers le curseur |
 | 1 à 5 (ou pavé numérique) | Sorts |
 | R | Potion |
+| F | Grimoire des âmes (nécromancien) |
 | E | Parler, ouvrir, utiliser (en ligne : inviter un héros proche) |
 | Entrée | Discuter (en ligne) |
 | P | Joueurs en ligne et groupe |
@@ -115,6 +117,7 @@ Puis ouvrir http://localhost:8000 dans un navigateur. Ainsi, le jeu est en solo 
 | `js/ui.js` | Interface en jeu : HUD, inventaire, boutiques, quêtes, menu pause |
 | `js/menu.js` | Menu de départ animé, héros, création, touches, options, cimetière |
 | `js/creator.js` | Mode créateur : tous les objets, héros au maximum, donjons, monstres à volonté |
+| `js/souls.js` | Grimoire des âmes du nécromancien : boss vaincus à invoquer |
 | `js/net.js` | Jeu en ligne : connexion, autres héros en ville, discussion, groupes, liste des joueurs |
 | `js/coop.js` | Donjons en groupe : état des monstres envoyé par le chef, attaques partagées, mort en groupe |
 | `js/main.js` | Démarrage, sauvegarde, clavier et souris |

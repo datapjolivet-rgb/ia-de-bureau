@@ -450,13 +450,13 @@
     const seen = new Set();
     (list || []).slice(0, 12).forEach((a) => {
       if (!Array.isArray(a)) return;
-      const [id, type, x, y, hpPct, aim, elite] = a, key = from + ':' + id;
+      const [id, type, x, y, hpPct, aim, elite, soul] = a, key = from + ':' + id;
       if (!D.MONSTERS[type]) return;
       seen.add(key);
       let u = st.rmin.get(key);
       if (!u) {
         u = Game.makeMonster(type, x, y, 1, !!elite);
-        Object.assign(u, { faction: 'p', minion: true, remote: true, netCtl: true, rminKey: key, owner: from, tx: x, ty: y, affixText: null, boss: false, explosive: false, vamp: 0, name: u.name + ' (serviteur)', life: 1e9, aggro: true });
+        Object.assign(u, { faction: 'p', minion: true, remote: true, netCtl: true, rminKey: key, owner: from, tx: x, ty: y, affixText: null, boss: false, explosive: false, vamp: 0, name: u.name + (soul ? ' (âme)' : ' (serviteur)'), life: 1e9, aggro: true });
         st.sc.units.push(u);
         st.rmin.set(key, u);
       }

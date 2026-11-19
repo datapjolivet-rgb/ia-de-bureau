@@ -16,6 +16,7 @@
     { id: 's4', name: 'Sort 4', group: 'Combat' },
     { id: 's5', name: 'Sort 5', group: 'Combat' },
     { id: 'potion', name: 'Boire une potion', group: 'Combat' },
+    { id: 'summon', name: 'Grimoire des âmes (nécromancien)', group: 'Combat' },
     { id: 'interact', name: 'Parler, ouvrir, utiliser', group: 'Interface' },
     { id: 'inventory', name: 'Ouvrir l\'inventaire', group: 'Interface' },
     { id: 'creator', name: 'Mode créateur', group: 'Interface' },
@@ -26,7 +27,7 @@
   const DEFAULTS = {
     up: ['KeyW', 'ArrowUp'], down: ['KeyS', 'ArrowDown'], left: ['KeyA', 'ArrowLeft'], right: ['KeyD', 'ArrowRight'],
     attack: ['Mouse0', null], s1: ['Digit1', 'Numpad1'], s2: ['Digit2', 'Numpad2'], s3: ['Digit3', 'Numpad3'], s4: ['Digit4', 'Numpad4'], s5: ['Digit5', 'Numpad5'],
-    potion: ['KeyR', null], interact: ['KeyE', null], inventory: ['Tab', 'KeyI'], creator: ['KeyC', null], chat: ['Enter', 'NumpadEnter'], social: ['KeyP', null], menu: ['Escape', null],
+    potion: ['KeyR', null], summon: ['KeyF', null], interact: ['KeyE', null], inventory: ['Tab', 'KeyI'], creator: ['KeyC', null], chat: ['Enter', 'NumpadEnter'], social: ['KeyP', null], menu: ['Escape', null],
   };
   Input.binds = JSON.parse(JSON.stringify(DEFAULTS));
 

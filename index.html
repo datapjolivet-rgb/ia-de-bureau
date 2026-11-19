@@ -253,6 +253,19 @@ button.kbtn.wait, button.kbtn.wait:hover { white-space: normal; font-size: 14px;
 .tomb .cause { color: var(--blood); }
 #small-note { position: absolute; inset: 0; display: none; place-items: center; text-align: center; padding: 24px max(16px, env(safe-area-inset-left, 0px)); background: var(--table); color: var(--paper); font-size: 22px; z-index: 50; }
 @media (max-width: 700px), (max-height: 380px) { #small-note { display: grid; } }
+/* ----- Grimoire des âmes (nécromancien) ----- */
+.soulgrid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
+.soul { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 6px 6px 8px; text-align: center; border: 2px solid var(--ink); border-radius: var(--sketch); background: rgba(91, 208, 74, 0.08); }
+.soul img { width: 84px; height: 84px; }
+.soul b { font-family: var(--f-title); font-size: 19px; line-height: 1.05; }
+.soul small { color: var(--ink-soft); font-size: 13px; line-height: 1.2; }
+.soul button { font-size: 15px; padding: 2px 10px; margin-top: 2px; }
+.soul.lock { border-style: dashed; background: rgba(43, 33, 24, 0.05); opacity: 0.75; }
+.slot.soulslot { color: #3f7d2a; }
+.slot.soulslot.active { box-shadow: 0 0 0 3px rgba(91, 208, 74, 0.55); }
+.slot.soulslot.nores, .slot.soulslot.locked { opacity: 0.45; }
+#resbar.locked span { color: #f2f2e6; }
+#resbar.locked { background: repeating-linear-gradient(-45deg, rgba(43, 33, 24, 0.25) 0 6px, rgba(43, 33, 24, 0.1) 6px 12px); }
 /* ----- Jeu en ligne : discussion, groupe, invitations ----- */
 #chat { position: absolute; left: 14px; bottom: 64px; width: 380px; display: flex; flex-direction: column; gap: 4px; pointer-events: none; }
 #chat.tuto { display: none; }
@@ -322,6 +335,7 @@ button.kbtn.wait, button.kbtn.wait:hover { white-space: normal; font-size: 14px;
 <script src="js/tuto.js"></script>
 <script src="js/ui.js"></script>
 <script src="js/creator.js"></script>
+<script src="js/souls.js"></script>
 <script src="js/menu.js"></script>
 <script src="js/net.js"></script>
 <script src="js/coop.js"></script>

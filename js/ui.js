@@ -49,7 +49,9 @@
     $('hotbar').innerHTML = [0, 1, 2, 3, 4, 5].map((s) => {
       const ab = Game.abilityDef(s);
       return `<div class="slot" data-slot="${s}" data-tip="ab:${s}"><span class="key">${esc(slotKey(s))}</span><span class="abbr">${ab.abbr}</span>${ab.cost ? `<span class="cost">${ab.cost}</span>` : ''}<div class="cd"></div><div class="cdt"></div></div>`;
-    }).join('') + `<div class="slot" data-slot="p" data-tip="potion" style="color:var(--blood)"><span class="key">${esc(slotKey('p'))}</span><span class="abbr">Po</span><span class="cost" id="potn"></span><div class="cd"></div><div class="cdt"></div></div>`;
+    }).join('') + `<div class="slot" data-slot="p" data-tip="potion" style="color:var(--blood)"><span class="key">${esc(slotKey('p'))}</span><span class="abbr">Po</span><span class="cost" id="potn"></span><div class="cd"></div><div class="cdt"></div></div>` +
+      (ch.cls === 'necromancien' ? `<div class="slot soulslot" data-slot="soul" data-tip="soul"><span class="key">${esc(G.Input.shortLabel('summon'))}</span><span class="abbr">Âm</span><div class="cd"></div><div class="cdt"></div></div>` : '');
+    $('hotbar').onclick = (e) => { if (e.target.closest('[data-slot="soul"]') && G.Souls) G.Souls.toggle(); };
     setHint();
     buffSig = null;
     lastTracker = 0;
@@ -57,7 +59,7 @@
   };
 
   // ================= Noms des touches dans l'interface =================
-  const slotKey = (s) => G.Input.shortLabel(s === 'p' ? 'potion' : +s === 0 ? 'attack' : 's' + s);
+  const slotKey = (s) => G.Input.shortLabel(s === 'p' ? 'potion' : s === 'soul' ? 'summon' : +s === 0 ? 'attack' : 's' + s);
   function spellKeys(sep) {
     const ks = [1, 2, 3, 4, 5].map((n) => G.Input.shortLabel('s' + n));
     return ks.join('') === '12345' ? (sep ? '1 à 5' : '1–5') : ks.join(sep || ' ');
@@ -86,7 +88,8 @@
     hb.children[2].textContent = Math.ceil(Math.max(0, p.hp)) + ' / ' + p.maxHp;
     const rb = $('resbar');
     rb.children[0].style.width = (100 * p.res / p.resMax).toFixed(1) + '%';
-    rb.children[1].textContent = Math.floor(p.res) + ' / ' + p.resMax;
+    rb.children[1].textContent = p.manaLock ? 'Mana bloqué : âme invoquée' : Math.floor(p.res) + ' / ' + p.resMax;
+    rb.classList.toggle('locked', !!p.manaLock);
     $('pname').innerHTML = `<span>${esc(ch.name)}${ch.hardcore ? '<span class="hc">HC</span>' : ''}${ch.legend ? '<span class="legend">★</span>' : ''}${ch.creator ? '<span class="creator" title="Mode créateur">✎</span>' : ''}</span><small>Niv. ${ch.lvl} ${D.CLASSES[ch.cls].name}</small>`;
     const need = D.xpNext(ch.lvl);
     $('xpbar').children[0].style.width = (ch.lvl >= D.MAX_LEVEL ? 100 : (100 * ch.xp) / need).toFixed(1) + '%';
@@ -96,6 +99,13 @@
     const slots = $('hotbar').children;
     for (const el of slots) {
       const s = el.dataset.slot;
+      if (s === 'soul') { // grimoire des âmes : disponible, invoquée, ou déjà utilisée dans ce donjon
+        const st = G.Souls ? G.Souls.state() : { any: false };
+        el.classList.toggle('locked', !st.any);
+        el.classList.toggle('active', !!st.out);
+        el.classList.toggle('nores', st.any && !st.out && !st.can);
+        continue;
+      }
       let cd = 0, max = 1;
       if (s === 'p') { cd = p.potionCd; max = D.POTION_CD; }
       else {
@@ -110,12 +120,14 @@
     }
     const pn = $('potn'); if (pn) pn.textContent = ch.potions;
     // améliorations
-    const sig = p.buffs.map((b) => b.id + Math.ceil(b.t)).join('|') + (Game.char.boundBoss ? 'B' : '');
+    const soul = Game.soulOut && Game.soulOut();
+    const sig = p.buffs.map((b) => b.id + Math.ceil(b.t)).join('|') + (Game.char.boundBoss ? 'B' : '') + (soul ? 'S' + soul.type : '');
     if (sig !== buffSig) {
       buffSig = sig;
       const names = { cri: 'Cri de guerre', mur: 'Mur de bouclier', concentration: 'Concentration', parade: 'Parade', faucon: 'Œil du faucon', esprit: 'Esprit protecteur', divin: 'Bouclier divin', poison: 'Lames empoisonnées', furtif: 'Furtivité', frenesie: 'Frénésie', soif: 'Soif de sang', immortel: 'Rage immortelle', chant: 'Chant de guerre' };
       $('buffs').innerHTML = p.buffs.map((b) => `<span class="buff">${names[b.id] || b.id} ${Math.ceil(b.t)} s</span>`).join('') +
-        (Game.char.boundBoss ? `<span class="buff" style="color:var(--heal)">Serviteur lié : ${esc(D.MONSTERS[Game.char.boundBoss].name)}</span>` : '');
+        (Game.char.boundBoss ? `<span class="buff" style="color:var(--heal)">Serviteur lié : ${esc(D.MONSTERS[Game.char.boundBoss].name)}</span>` : '') +
+        (soul ? `<span class="buff" style="color:var(--heal)">Âme invoquée : ${esc(soul.def.name)} (mana bloqué)</span>` : '');
     }
     if (Game.time - lastTracker > 0.5 || lastTracker === 0) { lastTracker = Game.time || 0.01; renderTracker(); }
   };
@@ -461,6 +473,7 @@
     let h = '';
     if (ref.startsWith('it:')) h = itemTip(ref.slice(3));
     else if (ref.startsWith('ab:')) h = abilTip(+ref.slice(3));
+    else if (ref === 'soul') h = G.Souls ? G.Souls.tip() : '';
     else if (ref === 'potion') h = `<h4 style="color:var(--blood)">Potion de soin</h4><div class="muted">Touche ${esc(G.Input.label('potion'))}</div><hr>Rend ${Math.round(D.POTION_HEAL * 100)} % de votre vie. Recharge : ${D.POTION_CD} s.<br>Vous en avez ${Game.char.potions} / ${D.MAX_POTIONS}. En vente chez Ysolde.`;
     if (!h) { tip.hidden = true; return; }
     tip.innerHTML = h; tip.hidden = false;

@@ -92,7 +92,7 @@
     },
     necromancien: {
       name: 'Nécromancien', role: 'Invocateur des morts', color: '#3e5b3a', diff: 3, res: 'mana', resMax: 160, hp: 130, pow: 16, speed: 165,
-      desc: 'Relève les ennemis tombés pour en faire ses serviteurs. Parfois, le cadavre refuse… et explose.',
+      desc: 'Relève les ennemis tombés pour en faire ses serviteurs. Parfois, le cadavre refuse… et explose. Les boss qu\'il a vaincus rejoignent son Grimoire des âmes : il peut en invoquer un par donjon.',
       basic: { name: 'Trait d\'ombre', abbr: 'TO', cd: 0.75, fx: [{ k: 'proj', mult: 0.9, speed: 520, range: 520, r: 6, color: '#4f7a3d', look: 'orb' }] },
       abil: [
         { name: 'Relever les morts', abbr: 'RM', cost: 30, cd: 3, desc: 'Relève le cadavre le plus proche du curseur. Chances : 40 % (normal), 10 % (élite), 1 % (boss). En cas d\'échec, le cadavre explose sur vous.', fx: [{ k: 'raise' }] },
