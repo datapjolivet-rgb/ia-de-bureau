@@ -14,8 +14,9 @@
   // ---------- Sorts ----------
   // Chaque sort : nom, abréviation (barre d'action), coût, recharge (cd), effets (fx)
   // Les sorts 1 et 2 sont connus dès le départ ; 3, 4, 5 s'achètent chez le Maître des compétences.
-  D.UNLOCK = [null, { lvl: 1, gold: 0 }, { lvl: 1, gold: 0 }, { lvl: 3, gold: 150 }, { lvl: 6, gold: 450 }, { lvl: 9, gold: 1000 }];
-  D.RANK_COST = (slot, rank) => ({ lvl: [0, 0, 5, 10][rank] + slot, gold: Math.round((120 + slot * 90) * Math.pow(2.4, rank - 1)) });
+  // sorts 3, 4 et 5 : niveaux 10, 20 et 30 ; les rangs suivants viennent 5 et 10 niveaux plus tard
+  D.UNLOCK = [null, { lvl: 1, gold: 0 }, { lvl: 1, gold: 0 }, { lvl: 10, gold: 300 }, { lvl: 20, gold: 700 }, { lvl: 30, gold: 1200 }];
+  D.RANK_COST = (slot, rank) => ({ lvl: Math.max([0, 0, 5, 10][rank] + slot, D.UNLOCK[slot].lvl + [0, 0, 5, 10][rank]), gold: Math.round((120 + slot * 90) * Math.pow(2.4, rank - 1)) });
 
   D.CLASSES = {
     guerrier: {
