@@ -142,6 +142,7 @@
     { id: 'shake', name: 'Tremblement de l\'écran', desc: 'Quand vous êtes touché ou lors des explosions.' },
     { id: 'dmgNums', name: 'Chiffres de dégâts', desc: 'Les dégâts infligés et reçus s\'affichent au-dessus des personnages.' },
     { id: 'arrow', name: 'Flèche de guidage', desc: 'Une flèche jaune indique le prochain objectif.' },
+    { id: 'infoFrame', name: 'Cadre du lieu et des quêtes', desc: 'En haut à droite : le lieu, l\'or, les potions et les quêtes suivies. Le bouton « − » du cadre le replie aussi.' },
     { id: 'light', name: 'Éclairage des donjons', desc: 'Obscurité et lueurs des torches. À désactiver si le jeu rame.' },
     { id: 'creator', name: 'Mode créateur', desc: () => 'Accès à tous les objets, à tous les donjons, au niveau et à l\'or au maximum, à l\'invincibilité… En jeu : touche ' + Input.label('creator') + ' ou bouton dans la pause. Les héros qui l\'utilisent portent le badge « Créateur ».' },
   ];

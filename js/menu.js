@@ -385,6 +385,7 @@
     Input.setOption(c.dataset.opt, c.checked);
     if (c.dataset.opt === 'creator' && c.checked && UI.toast) UI.toast('Mode créateur activé : touche ' + Input.label('creator') + ' en jeu, ou bouton dans la pause.', '#7b3fa6', 4);
     if (c.dataset.opt === 'creator' && G.Game.mode === 'play') UI.refreshLabels();
+    if (c.dataset.opt === 'infoFrame' && UI.infoFold) UI.infoFold();
   };
   UI.showOptions = function () {
     const tv = frame('options', `<header class="tvhead"><h2>Options</h2><button data-back="1">Retour (Échap)</button></header>${UI.optionsBody()}`);

@@ -16,7 +16,7 @@
           <div class="bar" id="resbar"><i></i><span></span></div></div>
         <div id="buffs"></div>
         <div id="tutobox" class="sk live" hidden><div class="tuto-head" id="tutohead"></div><div id="tutosay"></div><div id="tutotext"></div><div class="tuto-foot"><span id="tutoprog"></span><button id="tutoskip">Passer le tutoriel</button></div></div>
-        <div id="info" class="sk"><div id="zone"></div><div id="wallet"></div><div id="tracker"></div></div>
+        <div id="info" class="sk"><div id="ztop"><div id="zone"></div><button class="live ifold" data-ifold="1" title="Replier ce cadre"></button></div><div id="wallet"></div><div id="tracker"></div></div>
         <div id="bossbar" class="sk" hidden><div id="bossname"></div><div class="bar"><i></i><span></span></div></div>
         <div id="hotwrap"><div class="bar" id="xpbar"><i></i><span></span></div><div id="hotbar" class="sk live"></div></div>
         <div id="hint"></div>
@@ -25,6 +25,9 @@
       <div id="panel" class="sk live" hidden><header><div><h2 id="ptitle"></h2><div class="sub" id="psub"></div></div><button class="close" id="pclose">Fermer (Échap)</button></header><div id="pbody"></div></div>
       <div id="screen" class="screen live" hidden></div>
       <div id="tip" class="sk" hidden></div>`;
+    // le cadre en haut à droite (lieu, or, quêtes) peut se replier ; le choix est gardé
+    $('info').addEventListener('click', (e) => { if (e.target.closest('[data-ifold]')) { G.Input.setOption('infoFrame', !G.opt('infoFrame')); UI.infoFold(); } });
+    UI.infoFold();
     $('pclose').onclick = () => UI.closePanel();
     $('tutoskip').onclick = () => G.Tuto && G.Tuto.skip();
     $('pbody').addEventListener('click', onPanelClick);
@@ -35,6 +38,13 @@
       if (G.Input.mode === 'touch') return; // au toucher, l'infobulle reste jusqu'au toucher suivant
       if (!e.relatedTarget || !e.relatedTarget.closest || !e.relatedTarget.closest('[data-tip]')) { tipRef = null; $('tip').hidden = true; }
     });
+  };
+
+  UI.infoFold = function () {
+    const open = G.opt('infoFrame'), el = $('info'), b = el && el.querySelector('[data-ifold]');
+    if (!el) return;
+    el.classList.toggle('folded', !open);
+    b.textContent = open ? '−' : '+'; b.title = open ? 'Replier ce cadre' : 'Déplier : or, potions, quêtes';
   };
 
   // ================= Scène =================

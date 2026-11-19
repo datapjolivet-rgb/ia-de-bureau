@@ -55,6 +55,11 @@ h1, h2, h3 { font-family: var(--f-title); font-weight: 700; margin: 0; line-heig
 #buffs { position: absolute; left: 16px; top: 112px; display: flex; gap: 6px; flex-wrap: wrap; width: 330px; }
 .buff { font-size: 14px; padding: 1px 8px; border: 1.5px solid var(--ink); border-radius: var(--sketch); background: var(--paper); }
 #info { position: absolute; right: 14px; top: 12px; width: 270px; padding: 10px 14px; display: flex; flex-direction: column; gap: 6px; }
+#ztop { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+#info .ifold { font-size: 18px; line-height: 1; padding: 1px 9px 3px; flex: none; }
+#info.folded { width: auto; padding: 6px 10px; }
+#info.folded #wallet, #info.folded #tracker, #info.folded #netline { display: none !important; }
+#info.folded #zone { font-size: 21px; }
 #zone { font-family: var(--f-title); font-size: 25px; font-weight: 700; line-height: 1; }
 #wallet { display: flex; gap: 14px; font-size: 17px; }
 #tracker { border-top: 1.5px dashed var(--ink-soft); padding-top: 6px; display: flex; flex-direction: column; gap: 3px; font-size: 15px; }
