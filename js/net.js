@@ -419,11 +419,14 @@
       const where = me ? '' : m.scene === key ? '' : m.scene === 'town' ? 'en ville' : /^tuto/.test(m.scene || '') ? 'au camp' : 'en donjon';
       return { m, me, hp: hp == null ? null : Math.max(0, Math.min(1, hp)), dead, where, lead: m.id === P.leader };
     });
-    const sig = rows.map((r) => [r.m.id, r.m.name, r.m.lvl, r.hp == null ? '' : Math.round(r.hp * 40), r.dead, r.where, r.lead].join(':')).join('|');
+    const open = G.opt('partyFrame'); // le joueur peut replier le cadre (bouton du cadre ou Options)
+    const sig = (open ? 'o|' : 'f|') + rows.map((r) => [r.m.id, r.m.name, r.m.lvl, r.hp == null ? '' : Math.round(r.hp * 40), r.dead, r.where, r.lead].join(':')).join('|');
     if (sig === Net.partySig && !el.hidden) return;
     Net.partySig = sig;
     el.hidden = false;
-    el.innerHTML = `<div class="ptl">Groupe ${P.members.length}/4</div>` + rows.map((r) => {
+    el.classList.toggle('folded', !open);
+    if (!open) { el.innerHTML = `<button class="live pfold" data-pfold="1" title="Afficher les membres du groupe">Groupe ${P.members.length}/4 ▸</button>`; return; }
+    el.innerHTML = `<div class="ptl"><span>Groupe ${P.members.length}/4</span><button class="live pfold" data-pfold="1" title="Cacher le cadre du groupe" aria-label="Cacher le cadre du groupe">−</button></div>` + rows.map((r) => {
       const C = D.CLASSES[r.m.cls] || { name: '?', color: '#888' };
       return `<div class="pm${r.me ? ' me' : ''}${r.dead ? ' dead' : ''}"><span class="pb" style="background:${C.color}">${esc(C.name[0])}</span>
         <span class="pn">${r.lead ? '<span class="lead" title="Chef du groupe">★</span>' : ''}${esc(r.m.name)}<small> niv. ${r.m.lvl | 0}${r.dead ? ' · mort' : r.where ? ' · ' + r.where : ''}</small></span>
@@ -523,6 +526,11 @@
       <div id="invites"></div>`);
     $('info').insertAdjacentHTML('beforeend', '<div id="netline" hidden></div>');
     $('netline').addEventListener('click', (e) => { if (e.target.closest('[data-players]')) UI.openPanel('players'); });
+    $('party').addEventListener('click', (e) => {
+      if (!e.target.closest('[data-pfold]')) return;
+      Input.setOption('partyFrame', !G.opt('partyFrame'));
+      Net.partySig = ''; renderParty();
+    });
     $('chatch').onclick = () => { Net.chatCh = Net.chatCh === 'party' || !Net.party ? 'all' : 'party'; renderCh(); $('chatinput').focus(); };
     const inp = $('chatinput');
     inp.addEventListener('keydown', (e) => {
@@ -542,12 +550,14 @@
   // ================= Options et écran titre =================
   if (Net.available) {
     const at = Input.OPTIONS.findIndex((o) => o.id === 'creator');
-    Input.OPTIONS.splice(at < 0 ? Input.OPTIONS.length : at, 0, { id: 'online', name: 'Jouer en ligne', desc: 'Voir les autres héros à Havre-Gris, discuter, former des groupes de 4 et explorer les donjons ensemble.' });
+    Input.OPTIONS.splice(at < 0 ? Input.OPTIONS.length : at, 0, { id: 'online', name: 'Jouer en ligne', desc: 'Voir les autres héros à Havre-Gris, discuter, former des groupes de 4 et explorer les donjons ensemble.' },
+      { id: 'partyFrame', name: 'Cadre du groupe', desc: 'Affiche les membres de votre groupe (niveau, vie, chef). Le bouton « − » du cadre le replie aussi.' });
   }
   const baseOptChange = UI.optionsChange;
   UI.optionsChange = function (e) {
     baseOptChange(e);
     const c = e.target.closest && e.target.closest('input[data-opt]');
+    if (c && c.dataset.opt === 'partyFrame') { Net.partySig = ''; renderParty(); return; }
     if (!c || c.dataset.opt !== 'online') return;
     if (Game.mode === 'title') return;
     if (c.checked) Net.start(Game.char); else { Net.stop(); Net.char = Game.char; }

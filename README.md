@@ -45,7 +45,7 @@ Le jeu en ligne fonctionne sur https://valdorne.chroniques-valdorne.workers.dev,
 
 - **Havre-Gris partagée** : on voit les autres héros se déplacer, avec leur nom.
 - **Discussion** : Entrée pour écrire, Entrée pour envoyer, Échap pour fermer. Les messages s'affichent aussi en bulle au-dessus du héros. « /g » devant le message (ou Tab, ou le bouton du canal) : message au groupe seulement.
-- **Groupes de 4** : approchez-vous d'un héros et appuyez sur E pour l'inviter, ou ouvrez la liste des joueurs (touche P) pour inviter, exclure, nommer un nouveau chef, quitter le groupe ou ignorer un joueur. Le cadre du groupe affiche les membres, leur niveau et leur vie.
+- **Groupes de 4** : approchez-vous d'un héros et appuyez sur E pour l'inviter, ou ouvrez la liste des joueurs (touche P) pour inviter, exclure, nommer un nouveau chef, quitter le groupe ou ignorer un joueur. Le cadre du groupe affiche les membres, leur niveau et leur vie ; son bouton « − » le replie (le choix est gardé, et se règle aussi dans les Options).
 - **Donjons en groupe** : le chef ouvre le donjon au Portail et tout le groupe y entre (tous les membres doivent être en ville). Les monstres ont +70 % de vie par joueur en plus. Quand un héros entre dans la salle du boss, la porte se ferme et le reste du groupe le rejoint.
 - **Butin personnel** : chacun reçoit son or, ses objets (pour sa classe), son expérience et ses coffres. Un donjon que votre héros n'a pas encore débloqué ne lui donne pas de fragment du Sceau.
 - **Mort en groupe** : les pénalités habituelles s'appliquent, puis le héros regarde son groupe combattre ; il rentre en ville quand il veut. Si tout le groupe tombe, tout le monde rentre.

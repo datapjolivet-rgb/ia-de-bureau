@@ -312,7 +312,10 @@ body.touchmode #chat { bottom: 96px; }
 #chatin button.party { color: #2f5d8a; border-color: #2f5d8a; }
 #chatinput { flex: 1; min-width: 0; font-family: var(--f-ui); font-size: 17px; padding: 3px 10px; color: var(--ink); background: #f7eed7; border: 2px solid var(--ink); border-radius: 10px 4px 10px 4px; }
 #party { position: absolute; left: 14px; top: 156px; width: 236px; padding: 6px 10px 8px; display: flex; flex-direction: column; gap: 5px; font-size: 15px; background: rgba(239, 227, 198, 0.92); }
-#party .ptl { font-family: var(--f-title); font-size: 21px; font-weight: 700; line-height: 1; }
+#party .ptl { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-family: var(--f-title); font-size: 21px; font-weight: 700; line-height: 1; }
+#party .pfold { font-size: 18px; line-height: 1; padding: 1px 9px 3px; }
+#party.folded { width: auto; padding: 0; background: none; border: 0; box-shadow: none; }
+#party.folded .pfold { font-family: var(--f-title); font-size: 20px; font-weight: 700; padding: 3px 12px; background: rgba(239, 227, 198, 0.92); }
 #party .pm { display: grid; grid-template-columns: 24px 1fr; grid-template-rows: auto auto; column-gap: 7px; align-items: center; }
 #party .pm.dead { opacity: 0.55; }
 #party .pb, .prow .pb { grid-row: span 2; width: 24px; height: 24px; display: grid; place-items: center; color: #f7eed7; font-family: var(--f-title); font-size: 17px; font-weight: 700; border: 1.5px solid var(--ink); border-radius: 50% 45% 50% 45%; }
