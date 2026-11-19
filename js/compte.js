@@ -6,7 +6,7 @@
   const UI = G.UI, esc = G.esc;
   const $ = (id) => document.getElementById(id);
   const KS = 'valdorne-compte';
-  const Compte = (G.Compte = { nom: null, jeton: null, dispo: false, sansCompte: false, mode: 'connexion', attente: false });
+  const Compte = (G.Compte = { nom: null, jeton: null, role: '', dispo: false, sansCompte: false, mode: 'connexion', attente: false });
   const vide = () => ({ v: 1, chars: [], last: 0, updated: 0, graveyard: [] });
   const lire = () => { try { return JSON.parse(localStorage.getItem(KS)); } catch (e) { return null; } };
   const ecrire = (v) => { try { if (v) localStorage.setItem(KS, JSON.stringify(v)); else localStorage.removeItem(KS); } catch (e) { /* stockage bloqué */ } };
@@ -35,7 +35,7 @@
     Compte.dispo = true;
     if (r.ok && st && st.jeton) {
       const d = await r.json().catch(() => ({}));
-      Compte.nom = d.nom || st.nom; Compte.jeton = st.jeton;
+      Compte.nom = d.nom || st.nom; Compte.jeton = st.jeton; Compte.role = d.role || '';
       await charger();
       return;
     }
@@ -81,11 +81,18 @@
   window.addEventListener('pagehide', () => { if (attente && Compte.jeton) try { fetch('/api/compte/sauvegarde', { method: 'PUT', keepalive: true, headers: Object.assign({ 'content-type': 'application/json' }, auth()), body: attente }); } catch (e) { /* tant pis */ } });
 
   function deconnecte(msg) {
-    ecrire(null); Compte.nom = Compte.jeton = null; attente = null;
+    ecrire(null); Compte.nom = Compte.jeton = null; Compte.role = ''; attente = null;
     if (G.Net && G.Net.stop) G.Net.stop();
     utiliser(null);
     if (msg && UI.toast) UI.toast(msg, '#9b2c20', 4);
   }
+  // un administrateur a modifié ou banni ce compte : retour au portail
+  Compte.sortieForcee = function (msg) {
+    deconnecte(null);
+    if (G.Game.mode !== 'title') { G.Game.mode = 'title'; G.Game.scene = null; }
+    UI.showTitle();
+    if (msg && UI.toast) UI.toast(msg, '#9b2c20', 8);
+  };
   Compte.deconnexion = function () {
     if (Compte.jeton) requete('/api/compte/deconnexion', { method: 'POST', headers: auth() }).catch(() => {});
     deconnecte(null);
@@ -130,7 +137,7 @@
       return err(!r ? 'Serveur injoignable. Vérifiez votre connexion, ou jouez sans compte.' : d.erreur || 'Une erreur est survenue.');
     }
     const anon = G.Save.data; // héros de l'appareil « sans compte »
-    Compte.nom = d.nom; Compte.jeton = d.jeton; Compte.sansCompte = false;
+    Compte.nom = d.nom; Compte.jeton = d.jeton; Compte.role = d.role || ''; Compte.sansCompte = false; attente = null;
     ecrire({ nom: d.nom, jeton: d.jeton });
     await charger();
     if (UI.toast) UI.toast((ins ? 'Compte créé. ' : '') + 'Bienvenue, ' + d.nom + ' !', '#4f8a2a', 3);
@@ -152,7 +159,7 @@
     const foot = document.querySelector('.tfoot');
     if (!foot || !Compte.dispo) return;
     foot.insertAdjacentHTML('beforeend', Compte.nom
-      ? `<span class="lacct">Compte : <b>${esc(Compte.nom)}</b> · <button class="lbtn" data-logout="1">Se déconnecter</button></span>`
+      ? `<span class="lacct">Compte : <b>${esc(Compte.nom)}</b> · ${Compte.role === 'admin' ? '<button class="lbtn" data-admin="1">Administration</button> · ' : ''}<button class="lbtn" data-logout="1">Se déconnecter</button></span>`
       : '<span class="lacct">Sans compte · <button class="lbtn" data-login="1">Se connecter</button></span>');
     foot.onclick = (e) => {
       const b = e.target.closest('button');
@@ -160,6 +167,7 @@
       e.stopPropagation(); // le même clic ne doit pas atteindre la fenêtre qui s'ouvre
       if (b.dataset.logout) UI.titleConfirm('Se déconnecter ?', 'Vos héros restent enregistrés sur votre compte.', 'Se déconnecter', () => Compte.deconnexion(), () => UI.showTitle());
       if (b.dataset.login) { Compte.sansCompte = false; UI.showLogin('connexion'); }
+      if (b.dataset.admin && UI.showAdmin) UI.showAdmin();
     };
   };
 })();

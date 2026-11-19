@@ -18,7 +18,7 @@
   // ================= Connexion =================
   Net.enabled = () => Net.available && G.opt('online') && !!(G.Compte && G.Compte.jeton); // jeu en ligne : avec un compte
   Net.start = function (ch) {
-    Net.char = ch;
+    Net.char = ch; Net.bloque = false;
     if (!Net.enabled() || !ch) return;
     if (ch.creator) { setTimeout(() => UI.toast('Ce héros a utilisé le mode créateur : il joue hors ligne.', '#7b3fa6', 4), 400); renderNet(); return; }
     if (Net.ws) { if (Net.ws.readyState === 1) hello(); return; }
@@ -41,7 +41,7 @@
   // réponse de /api/status : { online } avec un serveur de jeu, 'absent' sur un simple hébergement de fichiers, null si erreur passagère
   const statusOf = (r) => (r.status === 404 || r.status === 405 ? 'absent' : r.ok ? r.json().catch(() => 'absent') : null);
   function retryLater() {
-    if (!Net.char || !Net.enabled() || Game.mode === 'title') return;
+    if (!Net.char || !Net.enabled() || Game.mode === 'title' || Net.bloque) return; // expulsé : pas de reconnexion automatique
     const wait = Math.min(60, 3 * Math.pow(2, Net.retry++));
     Net.retryT = setTimeout(() => { if (!Net.ws && Net.char && Game.mode !== 'title') connect(); }, wait * 1000);
   }
@@ -173,7 +173,11 @@
       }
       case 'me': onMe(m); break;
       case 'chat': onChat(m); break;
-      case 'notice': UI.toast(m.text, '#2b2118', 3); sys(m.text); break;
+      case 'notice': UI.toast(m.text, m.annonce ? '#7b3fa6' : '#2b2118', m.annonce ? 8 : 3); sys(m.text); break;
+      case 'kick': // décision d'un administrateur
+        Net.bloque = true; UI.toast(m.text, '#9b2c20', 8); sys(m.text);
+        if ((m.code === 4002 || m.code === 4003) && G.Compte) setTimeout(() => G.Compte.sortieForcee(m.text), 1500);
+        break;
       case 'invite': onInvite(m); break;
       case 'party': setParty(m.party, m); break;
       case 'start': if (G.Coop) G.Coop.begin(m); break;

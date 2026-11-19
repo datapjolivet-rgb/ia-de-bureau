@@ -30,7 +30,7 @@ export default {
       if (request.headers.get('Upgrade') !== 'websocket') return new Response('Connexion WebSocket attendue.', { status: 426 });
       return env.WORLD.getByName('monde-v2').fetch(request);
     }
-    if (url.pathname === '/api/status' || url.pathname.startsWith('/api/compte/')) {
+    if (url.pathname === '/api/status' || url.pathname.startsWith('/api/compte/') || url.pathname.startsWith('/api/admin/')) {
       try { return await env.WORLD.getByName('monde-v2').fetch(request); }
       catch (e) { return Response.json({ erreur: 'Serveur indisponible, réessayez dans un instant.', detail: String(e && e.message || e).slice(0, 300) }, { status: 503 }); }
     }
@@ -78,7 +78,20 @@ export class World extends DurableObject {
     sql.exec(`CREATE TABLE IF NOT EXISTS comptes (cle TEXT PRIMARY KEY, nom TEXT NOT NULL, sel TEXT NOT NULL, empreinte TEXT NOT NULL, cree INTEGER NOT NULL)`);
     sql.exec(`CREATE TABLE IF NOT EXISTS sessions (jeton TEXT PRIMARY KEY, cle TEXT NOT NULL, expire INTEGER NOT NULL)`);
     sql.exec(`CREATE TABLE IF NOT EXISTS sauvegardes (cle TEXT PRIMARY KEY, donnees TEXT NOT NULL, maj INTEGER NOT NULL)`);
+    sql.exec(`CREATE TABLE IF NOT EXISTS reglages (k TEXT PRIMARY KEY, v TEXT NOT NULL)`);
+    for (const col of ['role TEXT NOT NULL DEFAULT \'\'', 'banni INTEGER NOT NULL DEFAULT 0', 'muet INTEGER NOT NULL DEFAULT 0']) {
+      try { sql.exec('ALTER TABLE comptes ADD COLUMN ' + col); } catch (e) { /* colonne déjà là */ }
+    }
+    // premier administrateur : le compte « Polux » (déjà créé par le propriétaire du jeu), une seule fois
+    // (seulement si ce compte existait avant cette mise à jour : personne ne peut le créer ensuite pour obtenir le rôle)
+    if (!sql.exec("SELECT v FROM reglages WHERE k = 'admin-polux'").toArray().length
+      && sql.exec("SELECT cle FROM comptes WHERE cle = 'polux' AND cree < ?", Date.parse('2026-11-19T18:00:00Z')).toArray().length) {
+      sql.exec("UPDATE comptes SET role = 'admin' WHERE cle = 'polux'");
+      sql.exec("INSERT INTO reglages (k, v) VALUES ('admin-polux', '1')");
+    }
   }
+  reglage(k) { const r = this.ctx.storage.sql.exec('SELECT v FROM reglages WHERE k = ?', k).toArray()[0]; return r ? r.v : null; }
+  regler(k, v) { this.ctx.storage.sql.exec('INSERT INTO reglages (k, v) VALUES (?, ?) ON CONFLICT(k) DO UPDATE SET v = excluded.v', k, String(v)); }
 
   // ---------- comptes ----------
   async compte(request, url) {
@@ -94,7 +107,7 @@ export class World extends DurableObject {
       if (!/^[\p{L}\p{N}_-]{3,16}$/u.test(nom)) return json({ erreur: 'Le pseudo doit faire 3 à 16 caractères : lettres, chiffres, - ou _.' }, 400);
       if (mdp.length < 6 || mdp.length > 128) return json({ erreur: 'Le mot de passe doit faire au moins 6 caractères.' }, 400);
       const cle = nom.toLocaleLowerCase('fr');
-      const row = sql.exec('SELECT nom, sel, empreinte FROM comptes WHERE cle = ?', cle).toArray()[0];
+      const row = sql.exec('SELECT nom, sel, empreinte, role, banni FROM comptes WHERE cle = ?', cle).toArray()[0];
       if (route === 'inscription') {
         if (row) return json({ erreur: 'Ce pseudo est déjà pris.' }, 409);
         const sel = hex(crypto.getRandomValues(new Uint8Array(16)));
@@ -103,11 +116,12 @@ export class World extends DurableObject {
       }
       if (!this.essai('compte:' + cle, 10)) return json({ erreur: 'Trop d\'essais pour ce compte. Réessayez dans quelques minutes.' }, 429);
       if (!row || !egal(await empreinte(mdp, row.sel), row.empreinte)) return json({ erreur: 'Pseudo ou mot de passe incorrect.' }, 401);
-      return json({ nom: row.nom, jeton: await this.session(cle) });
+      if (row.banni) return json({ erreur: 'Ce compte a été banni par un administrateur.' }, 403);
+      return json({ nom: row.nom, role: row.role, jeton: await this.session(cle) });
     }
     const who = await this.qui(request);
     if (!who) return json({ erreur: 'Session expirée : reconnectez-vous.' }, 401);
-    if (route === 'moi') return json({ nom: who.nom });
+    if (route === 'moi') return json({ nom: who.nom, role: who.role });
     if (route === 'deconnexion') { sql.exec('DELETE FROM sessions WHERE jeton = ?', who.jeton); return json({ ok: true }); }
     if (route === 'sauvegarde') {
       if (request.method === 'GET') {
@@ -125,6 +139,88 @@ export class World extends DurableObject {
     }
     return json({ erreur: 'Inconnu.' }, 404);
   }
+  // ---------- administration (comptes ayant le rôle « admin ») ----------
+  async admin(request, url) {
+    const sql = this.ctx.storage.sql;
+    const json = (o, status = 200) => Response.json(o, { status, headers: { 'cache-control': 'no-store' } });
+    const who = await this.qui(request);
+    if (!who || who.role !== 'admin') return json({ erreur: 'Réservé aux administrateurs.' }, 403);
+    const route = url.pathname.slice('/api/admin/'.length), m = request.method;
+    let b = {};
+    if (m === 'POST' || m === 'PUT') { try { b = route === 'sauvegarde' ? null : await request.json(); } catch (e) { return json({ erreur: 'Demande illisible.' }, 400); } }
+    const compte = (nom) => sql.exec('SELECT cle, nom, role, banni, muet, cree FROM comptes WHERE cle = ?', String(nom || '').trim().toLocaleLowerCase('fr')).toArray()[0];
+    const sockets = (cle) => this.all().filter((w) => this.info(w).cle === cle);
+    const ejecter = (w, texte, code) => { this.send(w, { t: 'kick', text: texte, code: code || 4001 }); try { w.close(code || 4001, 'expulsé'); } catch (e) { /* déjà fermée */ } this.drop(w); };
+    switch (route) {
+      case 'etat': {
+        const enLigne = this.all().map((w) => { const i = this.info(w); return { id: i.id, heros: i.name, compte: i.acct, cls: i.cls, lvl: i.lvl, scene: i.scene, admin: !!i.admin, muet: !!i.muet }; });
+        const n = (q) => sql.exec(q).toArray()[0].n;
+        return json({ enLigne, comptes: n('SELECT COUNT(*) AS n FROM comptes'), bannis: n('SELECT COUNT(*) AS n FROM comptes WHERE banni = 1'), admins: n("SELECT COUNT(*) AS n FROM comptes WHERE role = 'admin'"),
+          sauvegardes: n('SELECT COUNT(*) AS n FROM sauvegardes'), sessions: n('SELECT COUNT(*) AS n FROM sessions WHERE expire > ' + Date.now()), maintenance: this.reglage('maintenance') === '1', moi: who.nom });
+      }
+      case 'comptes': {
+        const q = '%' + String(url.searchParams.get('q') || '').toLocaleLowerCase('fr') + '%';
+        const rows = sql.exec('SELECT c.nom, c.role, c.banni, c.muet, c.cree, s.maj, length(s.donnees) AS taille FROM comptes c LEFT JOIN sauvegardes s ON s.cle = c.cle WHERE c.cle LIKE ? ORDER BY c.cree DESC LIMIT 300', q).toArray();
+        const ids = new Set(this.all().map((w) => this.info(w).cle));
+        return json({ comptes: rows.map((r) => Object.assign(r, { enLigne: ids.has(r.nom.toLocaleLowerCase('fr')) })) });
+      }
+      case 'annonce': {
+        const texte = clean(b.texte, 200); if (!texte) return json({ erreur: 'Message vide.' }, 400);
+        const out = JSON.stringify({ t: 'notice', text: '📣 ' + texte, annonce: 1 });
+        for (const w of this.all()) this.send(w, out);
+        return json({ ok: true, envoye: this.all().length });
+      }
+      case 'expulser': {
+        const w = this.byId(b.id); if (!w) return json({ erreur: 'Ce joueur n\'est plus connecté.' }, 404);
+        ejecter(w, 'Vous avez été expulsé par un administrateur.' + (b.raison ? ' Raison : ' + clean(b.raison, 120) : ''));
+        return json({ ok: true });
+      }
+      case 'muet': case 'bannir': case 'role': case 'mdp': case 'supprimer': {
+        const c = compte(b.nom); if (!c) return json({ erreur: 'Compte introuvable.' }, 404);
+        if (route === 'muet') {
+          sql.exec('UPDATE comptes SET muet = ? WHERE cle = ?', b.muet ? 1 : 0, c.cle);
+          for (const w of sockets(c.cle)) { const i = this.info(w); i.muet = !!b.muet; this.save(w, i); this.send(w, { t: 'notice', text: b.muet ? 'Un administrateur a coupé votre discussion.' : 'Vous pouvez de nouveau discuter.' }); }
+          return json({ ok: true });
+        }
+        if ((route === 'bannir' || route === 'supprimer' || route === 'role') && c.cle === who.cle && !(route === 'role' && b.admin)) return json({ erreur: 'Impossible sur votre propre compte.' }, 400);
+        if (route === 'bannir') {
+          sql.exec('UPDATE comptes SET banni = ? WHERE cle = ?', b.banni ? 1 : 0, c.cle);
+          if (b.banni) { sql.exec('DELETE FROM sessions WHERE cle = ?', c.cle); for (const w of sockets(c.cle)) ejecter(w, 'Ce compte a été banni par un administrateur.', 4003); }
+          return json({ ok: true });
+        }
+        if (route === 'role') { sql.exec('UPDATE comptes SET role = ? WHERE cle = ?', b.admin ? 'admin' : '', c.cle); for (const w of sockets(c.cle)) { const i = this.info(w); i.admin = !!b.admin; this.save(w, i); } return json({ ok: true }); }
+        if (route === 'mdp') {
+          const mdp = String(b.mdp || ''); if (mdp.length < 6 || mdp.length > 128) return json({ erreur: 'Le mot de passe doit faire au moins 6 caractères.' }, 400);
+          const sel = hex(crypto.getRandomValues(new Uint8Array(16)));
+          sql.exec('UPDATE comptes SET sel = ?, empreinte = ? WHERE cle = ?', sel, await empreinte(mdp, sel), c.cle);
+          sql.exec('DELETE FROM sessions WHERE cle = ?', c.cle);
+          return json({ ok: true });
+        }
+        for (const w of sockets(c.cle)) ejecter(w, 'Ce compte a été supprimé par un administrateur.', 4003);
+        sql.exec('DELETE FROM sessions WHERE cle = ?', c.cle); sql.exec('DELETE FROM sauvegardes WHERE cle = ?', c.cle); sql.exec('DELETE FROM comptes WHERE cle = ?', c.cle);
+        return json({ ok: true });
+      }
+      case 'sauvegarde': {
+        const c = compte(url.searchParams.get('nom')); if (!c) return json({ erreur: 'Compte introuvable.' }, 404);
+        if (m === 'GET') { const r = sql.exec('SELECT donnees, maj FROM sauvegardes WHERE cle = ?', c.cle).toArray()[0]; return json({ nom: c.nom, donnees: r ? r.donnees : null, maj: r ? r.maj : 0 }); }
+        if (m !== 'PUT') return json({ erreur: 'Méthode non permise.' }, 405);
+        const txt = await request.text();
+        if (txt.length > 1500000) return json({ erreur: 'Sauvegarde trop grosse.' }, 413);
+        try { const d = JSON.parse(txt); if (!d || !Array.isArray(d.chars)) throw 0; } catch (e) { return json({ erreur: 'Sauvegarde illisible.' }, 400); }
+        sql.exec('INSERT INTO sauvegardes (cle, donnees, maj) VALUES (?, ?, ?) ON CONFLICT(cle) DO UPDATE SET donnees = excluded.donnees, maj = excluded.maj', c.cle, txt, Date.now());
+        // le joueur doit se reconnecter : sinon son jeu réenverrait l'ancienne version de ses héros
+        sql.exec('DELETE FROM sessions WHERE cle = ?', c.cle);
+        for (const w of sockets(c.cle)) ejecter(w, 'Un administrateur a modifié vos héros : reconnectez-vous pour les retrouver.', 4002);
+        return json({ ok: true });
+      }
+      case 'maintenance': {
+        this.regler('maintenance', b.on ? '1' : '0');
+        if (b.on) for (const w of this.all()) if (!this.info(w).admin) ejecter(w, 'Le serveur passe en maintenance. Revenez un peu plus tard !', 4004);
+        return json({ ok: true, maintenance: !!b.on });
+      }
+    }
+    return json({ erreur: 'Inconnu.' }, 404);
+  }
   async session(cle) {
     const jeton = b64url(crypto.getRandomValues(new Uint8Array(32)));
     // on ne garde que l'empreinte : une fuite de la base ne donne pas de session utilisable
@@ -136,8 +232,9 @@ export class World extends DurableObject {
     const t = tok || (request.headers.get('authorization') || '').replace(/^Bearer\s+/i, '');
     if (!t || t.length > 100) return null;
     const h = await sha(t);
-    const r = this.ctx.storage.sql.exec('SELECT s.cle AS cle, c.nom AS nom FROM sessions s JOIN comptes c ON c.cle = s.cle WHERE s.jeton = ? AND s.expire > ?', h, Date.now()).toArray()[0];
-    return r ? { cle: r.cle, nom: r.nom, jeton: h } : null;
+    const r = this.ctx.storage.sql.exec('SELECT s.cle AS cle, c.nom AS nom, c.role AS role, c.banni AS banni, c.muet AS muet FROM sessions s JOIN comptes c ON c.cle = s.cle WHERE s.jeton = ? AND s.expire > ?', h, Date.now()).toArray()[0];
+    if (!r || r.banni) return null;
+    return { cle: r.cle, nom: r.nom, role: r.role || '', muet: !!r.muet, jeton: h };
   }
   essai(k, max) {
     const now = Date.now(), r = this.tries.get(k) || [now, 0];
@@ -152,17 +249,18 @@ export class World extends DurableObject {
     if (url.pathname === '/api/status') {
       return Response.json({ online: this.named().length, comptes: true }, { headers: { 'cache-control': 'no-store', 'access-control-allow-origin': '*' } });
     }
-    if (url.pathname.startsWith('/api/compte/')) {
-      try { return await this.compte(request, url); }
+    if (url.pathname.startsWith('/api/compte/') || url.pathname.startsWith('/api/admin/')) {
+      try { return url.pathname.startsWith('/api/admin/') ? await this.admin(request, url) : await this.compte(request, url); }
       catch (e) { console.error('compte', e && e.stack); return Response.json({ erreur: 'Erreur du serveur.', detail: String(e && e.message || e).slice(0, 300) }, { status: 500 }); }
     }
     // jeu en ligne : seulement avec un compte
     const who = await this.qui(request, url.searchParams.get('jeton') || '');
     if (!who) return new Response('Connectez-vous pour jouer en ligne.', { status: 401 });
+    if (this.reglage('maintenance') === '1' && who.role !== 'admin') return new Response('Serveur en maintenance.', { status: 503 });
     const pair = new WebSocketPair();
     const [client, server] = Object.values(pair);
     this.ctx.acceptWebSocket(server);
-    const m = { id: crypto.randomUUID().replace(/-/g, '').slice(0, 12), name: '', acct: who.nom, cls: '', lvl: 1, party: null, leader: false, scene: 'town' };
+    const m = { id: crypto.randomUUID().replace(/-/g, '').slice(0, 12), name: '', acct: who.nom, cle: who.cle, admin: who.role === 'admin', muet: who.muet, cls: '', lvl: 1, party: null, leader: false, scene: 'town' };
     server.serializeAttachment(m);
     this.meta.set(server, m);
     return new Response(null, { status: 101, webSocket: client });
@@ -276,6 +374,7 @@ export class World extends DurableObject {
         if (!me.name) return;
         const text = clean(msg.text, 200);
         if (!text) return;
+        if (me.muet) { this.send(ws, { t: 'notice', text: 'Un administrateur a coupé votre discussion.' }); return; }
         const party = msg.ch === 'party' && me.party;
         const out = JSON.stringify({ t: 'chat', id: me.id, name: me.name, acct: me.acct || '', ch: party ? 'party' : 'all', text });
         for (const w of party ? this.members(me.party) : this.named()) this.send(w, out);
