@@ -43,6 +43,8 @@ Le Roi Cendré a brisé le Sceau des Quinze. Ses quinze lieutenants gardent chac
 
 Vidéo verticale de 24 secondes pour TikTok, Instagram Reels et YouTube Shorts (1080 × 1920) : les 10 classes, 5 boss, le jeu à plusieurs et l'application sur téléphone : `promo/valdorne-promo.mp4` (avec musique) et `promo/valdorne-promo-sans-musique.mp4` (pour ajouter un son depuis l'application). Toutes les images viennent du jeu.
 
+Bande-annonce de 46 secondes, façon cinéma, avec une voix off grave (voix de synthèse française, rendue plus grave et réverbérée), des sous-titres et une musique composée pour le montage : `promo/bande-annonce.mp4`, et `promo/bande-annonce-voix-seule.mp4` (la voix sans la musique, pour mettre un son de TikTok dessous).
+
 ## Jeu en ligne
 
 Le jeu en ligne fonctionne sur https://valdorne.chroniques-valdorne.workers.dev, où le jeu est servi par son serveur (dossier `server/`, voir « Mettre le jeu en ligne »). Dans l'artefact claude.ai ou en ouvrant les fichiers en local, le jeu reste en solo. L'option « Jouer en ligne » (Options) permet aussi de jouer hors ligne.
