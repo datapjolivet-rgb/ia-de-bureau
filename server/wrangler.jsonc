@@ -1,14 +1,12 @@
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
-  // Serveur multijoueur des Chroniques de Valdorne : le jeu (fichiers statiques) et le monde partagé (Durable Object)
+  // Serveur multijoueur des Chroniques de Valdorne : le jeu (fichiers intégrés au Worker) et le monde partagé (Durable Object)
   "name": "valdorne",
   "main": "src/index.js",
   "compatibility_date": "2026-11-18",
-  "assets": {
-    "directory": "./public",
-    "binding": "ASSETS",
-    "run_worker_first": ["/ws", "/api/*"]
-  },
+  // une seule adresse publique : https://valdorne.<sous-domaine>.workers.dev
+  "workers_dev": true,
+  "preview_urls": false,
   "durable_objects": {
     "bindings": [{ "name": "WORLD", "class_name": "World" }]
   },

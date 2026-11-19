@@ -4,6 +4,7 @@
 //   groupes de 4, et relais des données de donjon entre les membres d'un groupe.
 //   Le serveur ne fait tourner aucun monstre : en donjon, c'est l'ordinateur du chef de groupe qui le fait.
 import { DurableObject } from 'cloudflare:workers';
+import SITE from './site.js'; // la page et les scripts du jeu (générés par build.js)
 
 const MAX_PARTY = 4;
 const MAX_MSG_PER_SEC = 60;
@@ -19,9 +20,24 @@ export default {
     }
     if (url.pathname === '/api/status') return env.WORLD.getByName('monde').fetch(request);
     if (url.pathname.startsWith('/api/')) return new Response('Inconnu.', { status: 404 });
-    return env.ASSETS.fetch(request);
+    return serveFile(request, url);
   },
 };
+
+// Fichiers du jeu : la page n'est jamais gardée en cache sans vérification ; les scripts, numérotés, le sont longtemps.
+function serveFile(request, url) {
+  if (request.method !== 'GET' && request.method !== 'HEAD') return new Response('Méthode non permise.', { status: 405 });
+  const f = SITE[url.pathname === '/' ? '/index.html' : url.pathname];
+  if (!f) return new Response('Page introuvable.', { status: 404, headers: { 'content-type': 'text/plain; charset=utf-8' } });
+  const etag = '"' + f.etag + '"';
+  const headers = {
+    'content-type': f.type, etag,
+    'cache-control': f.immutable && url.searchParams.get('v') === f.etag ? 'public, max-age=31536000, immutable' : 'no-cache',
+    'x-content-type-options': 'nosniff',
+  };
+  if (request.headers.get('if-none-match') === etag) return new Response(null, { status: 304, headers });
+  return new Response(request.method === 'HEAD' ? null : f.body, { headers });
+}
 
 export class World extends DurableObject {
   constructor(ctx, env) {

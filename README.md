@@ -2,6 +2,8 @@
 
 RPG d'action en vue du dessus, au style **crayonné à la main**, jouable dans le navigateur (ordinateur, clavier et souris).
 
+**Jouer en ligne : https://valdorne.chroniques-valdorne.workers.dev**
+
 Le Roi Cendré a brisé le Sceau des Quinze. Ses quinze lieutenants gardent chacun un fragment au fond d'un donjon. Havre-Gris est le dernier bastion de Valdorne.
 
 ## Contenu actuel (version 5 : solo et en ligne)
@@ -37,7 +39,7 @@ Le Roi Cendré a brisé le Sceau des Quinze. Ses quinze lieutenants gardent chac
 
 ## Jeu en ligne
 
-Le jeu en ligne fonctionne quand le jeu est servi par son serveur (dossier `server/`, voir « Mettre le jeu en ligne »). Dans l'artefact claude.ai ou en ouvrant les fichiers en local, le jeu reste en solo. L'option « Jouer en ligne » (Options) permet aussi de jouer hors ligne.
+Le jeu en ligne fonctionne sur https://valdorne.chroniques-valdorne.workers.dev, où le jeu est servi par son serveur (dossier `server/`, voir « Mettre le jeu en ligne »). Dans l'artefact claude.ai ou en ouvrant les fichiers en local, le jeu reste en solo. L'option « Jouer en ligne » (Options) permet aussi de jouer hors ligne.
 
 - **Havre-Gris partagée** : on voit les autres héros se déplacer, avec leur nom.
 - **Discussion** : Entrée pour écrire, Entrée pour envoyer, Échap pour fermer. Les messages s'affichent aussi en bulle au-dessus du héros. « /g » devant le message (ou Tab, ou le bouton du canal) : message au groupe seulement.
@@ -52,7 +54,7 @@ Comment ça marche : l'ordinateur du chef de groupe fait vivre les monstres et e
 
 ## Mettre le jeu en ligne (Cloudflare, gratuit)
 
-Le serveur est un Worker Cloudflare avec un Durable Object (`server/src/index.js`) : il sert aussi les fichiers du jeu. Il faut un compte Cloudflare (gratuit) et Node.js.
+Le serveur est un Worker Cloudflare avec un Durable Object (`server/src/index.js`) : il sert aussi les fichiers du jeu, intégrés au Worker. Il faut un compte Cloudflare (gratuit) et Node.js.
 
 ```bash
 cd server
@@ -61,7 +63,7 @@ npx wrangler login
 npm run deploy
 ```
 
-`npm run deploy` copie le jeu dans `server/public/` puis le publie. Le jeu est alors à l'adresse `https://valdorne.<votre-sous-domaine>.workers.dev` (Wrangler propose de choisir ce sous-domaine la première fois).
+`npm run deploy` intègre la page et les scripts du jeu au serveur (fichier généré `server/src/site.js`), puis le publie. Le jeu est alors à l'adresse `https://valdorne.<votre-sous-domaine>.workers.dev` (Wrangler propose de choisir ce sous-domaine la première fois).
 
 Pour essayer en local avec plusieurs fenêtres : `npm run dev` dans `server/`, puis ouvrir http://localhost:8787 dans deux navigateurs (ou une fenêtre normale et une fenêtre privée).
 
