@@ -161,6 +161,7 @@
     items.push({ id: 'new', t: 'Nouveau héros', s: data.chars.length >= 6 ? 'Maximum atteint : 6 héros. Supprimez-en un pour en créer un autre.' : '10 classes, un tutoriel avec la sergente Brenna, et le mode Hardcore pour les plus courageux.', off: data.chars.length >= 6 });
     items.push({ id: 'keys', t: 'Touches', s: 'Changer les commandes du clavier et de la souris.' });
     items.push({ id: 'options', t: 'Options', s: 'Tremblement de l\'écran, chiffres de dégâts, flèche de guidage, éclairage.' });
+    if (G.App && G.App.canInstall()) items.push({ id: 'install', t: 'Installer l\'application', s: G.App.ios() ? 'Sur iPhone et iPad : l\'ajouter à l\'écran d\'accueil depuis Safari. Plein écran, et le jeu solo marche même sans internet.' : 'Ajouter le jeu à votre écran d\'accueil : une icône, le plein écran, et le jeu solo marche même sans internet.' });
     if ((data.graveyard || []).length) items.push({ id: 'grave', t: 'Cimetière des héros', s: `${data.graveyard.length} héros tombé${data.graveyard.length > 1 ? 's' : ''} en mode Hardcore. Ils ne reviendront pas.` });
     sel = Math.max(0, Math.min(sel, items.length - 1));
     if (items[sel].off) sel = items.findIndex((it) => !it.off);
@@ -186,7 +187,22 @@
     else if (it.id === 'keys') UI.showKeys();
     else if (it.id === 'options') UI.showOptions();
     else if (it.id === 'grave') UI.showGrave();
+    else if (it.id === 'install') G.App.install();
   }
+
+  // iPhone, iPad : l'installation se fait à la main, depuis Safari
+  UI.showInstallHelp = function () {
+    const tv = frame('install', `<h2>Installer sur iPhone ou iPad</h2>
+      <ol class="steps">
+        <li>Ouvrez ce site dans <b>Safari</b>.</li>
+        <li>Touchez <b>Partager</b> (le carré avec une flèche vers le haut).</li>
+        <li>Choisissez <b>« Sur l'écran d'accueil »</b>, puis <b>Ajouter</b>.</li>
+      </ol>
+      <p class="muted">Le jeu s'ouvre ensuite depuis son icône, en plein écran. Le jeu solo marche même sans internet ; le jeu en ligne demande une connexion.</p>
+      <p class="muted">Sur iPhone, les héros créés dans Safari ne sont en général pas visibles dans l'application installée : Apple sépare leurs sauvegardes.</p>
+      <div class="row"><button class="main" data-back="1">Retour</button></div>`, 'narrow');
+    tv.onclick = (e) => { if (e.target.closest('[data-back]')) UI.showTitle(); };
+  };
 
   // Clavier sur les écrans du menu
   UI.titleKey = function (e) {

@@ -25,9 +25,18 @@ export default {
 };
 
 // Fichiers du jeu : la page n'est jamais gardée en cache sans vérification ; les scripts, numérotés, le sont longtemps.
+// Les images (icônes de l'application) sont rangées en base64 dans site.js : on les décode une fois.
+const bytes = new Map();
+function bodyOf(path, f) {
+  if (!f.b64) return f.body;
+  let b = bytes.get(path);
+  if (!b) { const s = atob(f.b64); b = new Uint8Array(s.length); for (let i = 0; i < s.length; i++) b[i] = s.charCodeAt(i); bytes.set(path, b); }
+  return b;
+}
 function serveFile(request, url) {
   if (request.method !== 'GET' && request.method !== 'HEAD') return new Response('Méthode non permise.', { status: 405 });
-  const f = SITE[url.pathname === '/' ? '/index.html' : url.pathname];
+  const path = url.pathname === '/' ? '/index.html' : url.pathname;
+  const f = SITE[path];
   if (!f) return new Response('Page introuvable.', { status: 404, headers: { 'content-type': 'text/plain; charset=utf-8' } });
   const etag = '"' + f.etag + '"';
   const headers = {
@@ -36,7 +45,7 @@ function serveFile(request, url) {
     'x-content-type-options': 'nosniff',
   };
   if (request.headers.get('if-none-match') === etag) return new Response(null, { status: 304, headers });
-  return new Response(request.method === 'HEAD' ? null : f.body, { headers });
+  return new Response(request.method === 'HEAD' ? null : bodyOf(path, f), { headers });
 }
 
 export class World extends DurableObject {

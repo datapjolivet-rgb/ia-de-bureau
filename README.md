@@ -54,6 +54,16 @@ Le jeu en ligne fonctionne sur https://valdorne.chroniques-valdorne.workers.dev,
 
 Comment ça marche : l'ordinateur du chef de groupe fait vivre les monstres et envoie leur état une dizaine de fois par seconde, ainsi que chaque attaque ennemie dès qu'elle apparaît. Chaque joueur calcule lui-même les coups que reçoit son héros (ce qu'il voit à l'écran fait foi pour l'esquive) et envoie au chef les dégâts qu'il inflige. Le serveur relaie les messages et gère la ville, la discussion et les groupes. Le jeu étant coopératif, le serveur ne vérifie pas les calculs des joueurs.
 
+## Application pour téléphone (et tablette, ordinateur)
+
+Le site du jeu s'installe comme une application : une icône sur l'écran d'accueil, le jeu en plein écran et en paysage, et le **jeu solo marche même sans internet** (le jeu en ligne demande une connexion). L'application se met à jour toute seule : à chaque lancement avec internet, elle prend la dernière version publiée. Rien à payer, pas de magasin d'applications.
+
+- **Android** (Chrome, Samsung Internet, Edge…) : ouvrez https://valdorne.chroniques-valdorne.workers.dev, puis choisissez « Installer l'application » dans le menu de départ du jeu (ou dans le menu ⋮ du navigateur : « Installer l'application » / « Ajouter à l'écran d'accueil »). Les héros déjà créés dans le navigateur se retrouvent dans l'application.
+- **iPhone et iPad** : ouvrez le site dans **Safari**, touchez **Partager** (le carré avec une flèche vers le haut), puis **« Sur l'écran d'accueil »** et **Ajouter**. Le menu de départ du jeu rappelle ces étapes (« Installer l'application »). Attention : sur iPhone, l'application installée garde en général ses propres sauvegardes, séparées de celles de Safari ; les héros créés dans Safari n'y apparaissent pas.
+- **Ordinateur** (Chrome, Edge) : « Installer l'application » dans le menu de départ, ou l'icône d'installation dans la barre d'adresse.
+
+Comment ça marche : le site fournit un manifeste (nom, icônes, plein écran en paysage) et un « service worker » (`server/sw.js`) qui garde le jeu sur l'appareil. La page passe d'abord par le réseau, et la copie gardée sert quand il n'y a pas d'internet (ou s'il ne répond pas en 3,5 secondes). Les polices d'écriture sont gardées aussi. Le serveur de jeu (connexion en ligne) n'est jamais mis en cache. Les icônes sont dans le dossier `icons/`.
+
 ## Mettre le jeu en ligne (Cloudflare, gratuit)
 
 Le serveur est un Worker Cloudflare avec un Durable Object (`server/src/index.js`) : il sert aussi les fichiers du jeu, intégrés au Worker. Il faut un compte Cloudflare (gratuit) et Node.js.
@@ -65,7 +75,7 @@ npx wrangler login
 npm run deploy
 ```
 
-`npm run deploy` intègre la page et les scripts du jeu au serveur (fichier généré `server/src/site.js`), puis le publie. Le jeu est alors à l'adresse `https://valdorne.<votre-sous-domaine>.workers.dev` (Wrangler propose de choisir ce sous-domaine la première fois).
+`npm run deploy` intègre la page, les scripts, les icônes, le manifeste et le service worker de l'application au serveur (fichier généré `server/src/site.js`), puis le publie. Le jeu est alors à l'adresse `https://valdorne.<votre-sous-domaine>.workers.dev` (Wrangler propose de choisir ce sous-domaine la première fois).
 
 Pour essayer en local avec plusieurs fenêtres : `npm run dev` dans `server/`, puis ouvrir http://localhost:8787 dans deux navigateurs (ou une fenêtre normale et une fenêtre privée).
 
@@ -150,8 +160,10 @@ Puis ouvrir http://localhost:8000 dans un navigateur. Ainsi, le jeu est en solo 
 | `js/touch.js` | Écran tactile : joystick, boutons d'action, visée automatique |
 | `js/net.js` | Jeu en ligne : connexion, autres héros en ville, discussion, groupes, liste des joueurs |
 | `js/coop.js` | Donjons en groupe : état des monstres envoyé par le chef, attaques partagées, mort en groupe, corps et réanimation |
+| `js/app.js` | Application installable : mode hors ligne, entrée « Installer l'application » (Android, ordinateur, explications pour iPhone) |
 | `js/main.js` | Démarrage, sauvegarde, clavier et souris |
-| `server/` | Serveur Cloudflare (Worker + Durable Object) : ville partagée, discussion, groupes, relais des donjons |
+| `icons/` | Icônes de l'application (écran d'accueil, iPhone, onglet du navigateur) |
+| `server/` | Serveur Cloudflare (Worker + Durable Object) : ville partagée, discussion, groupes, relais des donjons ; `server/sw.js` garde le jeu sur l'appareil |
 
 ## Prochaines étapes
 

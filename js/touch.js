@@ -180,7 +180,7 @@
     const top = $('ttop');
     top.querySelector('[data-t="social"]').hidden = !(G.Net && G.Net.available);
     top.querySelector('[data-t="chat"]').hidden = !online;
-    top.querySelector('[data-t="full"]').hidden = !(document.fullscreenEnabled || document.webkitFullscreenEnabled);
+    top.querySelector('[data-t="full"]').hidden = !(document.fullscreenEnabled || document.webkitFullscreenEnabled) || !!(G.App && G.App.standalone()); // l'application installée est déjà en plein écran
   };
 
   const baseInit = UI.init;
